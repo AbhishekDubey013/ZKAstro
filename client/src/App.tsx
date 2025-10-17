@@ -5,20 +5,34 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { NavHeader } from "@/components/nav-header";
+import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
+import Dashboard from "@/pages/dashboard";
 import ChartDetail from "@/pages/chart-detail";
 import RequestDetail from "@/pages/request-detail";
 import Agents from "@/pages/agents";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
+
   return (
     <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/chart/:id" component={ChartDetail} />
-      <Route path="/request/:id" component={RequestDetail} />
-      <Route path="/agents" component={Agents} />
-      <Route component={NotFound} />
+      {isLoading || !isAuthenticated ? (
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/agents" component={Agents} />
+          <Route component={NotFound} />
+        </>
+      ) : (
+        <>
+          <Route path="/" component={Dashboard} />
+          <Route path="/chart/:id" component={ChartDetail} />
+          <Route path="/request/:id" component={RequestDetail} />
+          <Route path="/agents" component={Agents} />
+          <Route component={NotFound} />
+        </>
+      )}
     </Switch>
   );
 }
