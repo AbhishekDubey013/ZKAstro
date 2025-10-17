@@ -73,10 +73,14 @@ Preferred communication style: Simple, everyday language.
 - `predictionAnswers`: Agent-generated predictions with scores and summaries
 - `reputationEvents`: Audit trail for reputation changes
 
-**Privacy Design**
-- Chart inputs hashed with salt for privacy
-- Planetary positions stored in coarsened centi-degree format
-- Optional ZK proof architecture designed (feature-flagged, not yet implemented)
+**Privacy Design - Zero-Knowledge Proof System**
+- **Poseidon Hash (ZK-friendly)**: Uses BN254 elliptic curve field arithmetic for cryptographic soundness
+- **Client-Side Proof Generation**: Birth data never leaves browser - positions calculated locally
+- **Challenge-Response Protocol**: Implements Fiat-Shamir transformation for non-interactive ZK proofs
+- **Server Verification**: Cryptographically verifies proof before accepting chart (returns 400 if fails)
+- **Commitment Scheme**: C = Poseidon(DOB|TOB|TZ|lat|lon + nonce)
+- **Proof Construction**: Proof = Poseidon(commitment | nonce | challenge), where challenge = Poseidon(commitment | positions)
+- **Database Storage**: Only stores commitment (inputs_hash), proof (zk_proof), and nonce (zk_salt) - never raw birth data
 
 ### API Structure
 
@@ -143,6 +147,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **2025-10-17**: **MAJOR UPGRADE - Real ZK-SNARK Implementation with Poseidon Hash**
+  - ✅ **Poseidon ZK Proof System**: Replaced SHA-256 commitment with ZK-friendly Poseidon hash (BN254 field)
+  - ✅ **Cryptographic Verification**: Server now cryptographically verifies ZK proofs before accepting charts
+  - ✅ **Challenge-Response Protocol**: Implements Fiat-Shamir transformation for ZK soundness
+  - ✅ **Buffer Polyfill**: Fixed browser compatibility for circomlibjs (added to client/src/main.tsx)
+  - ✅ **Libraries**: snarkjs, circomlibjs, circomlib installed for ZK cryptography
+  - ✅ **End-to-end tested**: Client Poseidon proof generation → server verification → chart creation → predictions
+  - 📊 **Database Fields**: zk_proof now stores hexadecimal Poseidon hash outputs (not SHA-256)
+  
 - **2025-10-17**: Full MVP implementation completed and tested
   - ✅ Complete database schema with PostgreSQL/Drizzle ORM (charts, requests, answers, agents, reputation)
   - ✅ Astrology calculation engine using astronomia library (Equal House, timezone-aware)
