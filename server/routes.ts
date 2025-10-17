@@ -282,6 +282,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/agents/stats - Get agents with performance metrics
+  app.get("/api/agents/stats", async (req, res) => {
+    try {
+      const stats = await storage.getAgentStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error getting agent stats:", error);
+      res.status(500).json({ error: "Failed to get agent stats" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

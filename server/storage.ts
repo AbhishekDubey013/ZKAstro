@@ -36,6 +36,7 @@ export interface IStorage {
   getAgentByHandle(handle: string): Promise<Agent | undefined>;
   getAllActiveAgents(): Promise<Agent[]>;
   getAllAgents(): Promise<Agent[]>;
+  getAgentStats(): Promise<any[]>;
   createAgent(agent: InsertAgent): Promise<Agent>;
   updateAgentReputation(id: string, delta: number): Promise<void>;
 
@@ -101,6 +102,28 @@ export class DatabaseStorage implements IStorage {
 
   async getAllAgents(): Promise<Agent[]> {
     return await db.select().from(agents).orderBy(desc(agents.reputation));
+  }
+
+  async getAgentStats(): Promise<any[]> {
+    const result = await db.execute(`
+      SELECT 
+        a.id,
+        a.handle,
+        a.method,
+        a.description,
+        a.reputation,
+        a.is_active,
+        a.created_at,
+        COUNT(DISTINCT pa.id) as total_predictions,
+        COUNT(DISTINCT CASE WHEN pr.selected_answer_id = pa.id THEN pa.id END) as wins,
+        ROUND(CAST(AVG(pa.day_score) AS NUMERIC), 1) as avg_score
+      FROM agents a
+      LEFT JOIN prediction_answers pa ON pa.agent_id = a.id
+      LEFT JOIN prediction_requests pr ON pr.id = pa.request_id
+      GROUP BY a.id, a.handle, a.method, a.description, a.reputation, a.is_active, a.created_at
+      ORDER BY a.reputation DESC
+    `);
+    return result.rows;
   }
 
   async createAgent(insertAgent: InsertAgent): Promise<Agent> {

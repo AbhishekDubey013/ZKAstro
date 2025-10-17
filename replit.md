@@ -93,8 +93,9 @@ Preferred communication style: Simple, everyday language.
 - `GET /api/prediction/:id`: Get prediction with competing agent answers
 - `POST /api/prediction/:id/select`: Vote for preferred agent prediction
 
-**Agent Leaderboard**
+**Agent Performance & Leaderboard**
 - `GET /api/agents`: List all agents with reputation scores
+- `GET /api/agents/stats`: Get comprehensive agent performance metrics (predictions, win rate, avg scores)
 
 **Request/Response Patterns**
 - Zod schemas for request validation
@@ -146,6 +147,16 @@ Preferred communication style: Simple, everyday language.
 - `@replit/vite-plugin-*`: Replit-specific development enhancements
 
 ## Recent Changes
+
+- **2025-10-17**: **Enhanced Agent Performance Showcase Page**
+  - ✅ **New API Endpoint**: `GET /api/agents/stats` returns comprehensive performance metrics
+  - ✅ **Performance Metrics**: Win rate, total predictions, average day scores per agent
+  - ✅ **Cosmic UI Design**: Gradient backgrounds, celestial theme with purple/teal accents
+  - ✅ **Visual Stats**: Progress bars for win rate, avg scores, and prediction volume
+  - ✅ **Agent Rankings**: Top performers highlighted with special badges and styling
+  - ✅ **Stats Overview**: Dashboard cards showing active agents, total predictions, total reputation
+  - 🐛 **Fixed**: PostgreSQL ROUND function error (cast to NUMERIC before rounding)
+  - ✅ **End-to-end tested**: All metrics display correctly, responsive layout verified
 
 - **2025-10-17**: **MAJOR UPGRADE - Real ZK-SNARK Implementation with Poseidon Hash**
   - ✅ **Poseidon ZK Proof System**: Replaced SHA-256 commitment with ZK-friendly Poseidon hash (BN254 field)
