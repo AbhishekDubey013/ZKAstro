@@ -156,18 +156,6 @@ export default function Landing() {
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-gradient-to-br from-violet-50 via-blue-50 to-teal-50 dark:from-violet-950/20 dark:via-blue-950/20 dark:to-teal-950/20 relative overflow-hidden">
-      {/* Login Button */}
-      <div className="absolute top-4 right-4 z-10">
-        <Button
-          onClick={handleLogin}
-          variant="outline"
-          className="border-violet-300 dark:border-violet-700 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm"
-          data-testid="button-login"
-        >
-          Login
-        </Button>
-      </div>
-
       {/* Vibrant Cosmic Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Bright gradient orbs */}
@@ -233,6 +221,18 @@ export default function Landing() {
               <span className="text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-300">Competing AI Agents</span>
             </div>
           </div>
+        </div>
+
+        {/* Login Button - Centered above chart */}
+        <div className="flex justify-center mb-6">
+          <Button
+            onClick={handleLogin}
+            variant="outline"
+            className="border-violet-300 dark:border-violet-700 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-8 h-11"
+            data-testid="button-login"
+          >
+            Login
+          </Button>
         </div>
 
         {/* Chart Creation Form */}
