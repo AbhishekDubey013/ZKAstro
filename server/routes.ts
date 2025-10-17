@@ -41,16 +41,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // ZK MODE: Client provides pre-calculated positions + proof
         const zkBody: CreateChartZKRequest = createChartZKRequestSchema.parse(req.body);
 
-        // Verify ZK proof (basic verification - in production would be more sophisticated)
-        const proofData = {
-          commitment: zkBody.inputsHash,
-          positions: zkBody.params.planets,
-          asc: zkBody.params.asc,
-          mc: zkBody.params.mc,
-          timestamp: Date.now(), // Note: In production, timestamp should be included in proof
-        };
+        // VERIFY ZK PROOF using Poseidon hash (cryptographically sound)
+        const { verifyZKProof } = await import('../lib/zkproof/poseidon-proof');
         
-        // Save chart with ZK proof (raw birth data never stored)
+        const isValid = await verifyZKProof(
+          zkBody.inputsHash, // commitment
+          zkBody.zkProof,    // proof
+          zkBody.zkSalt,     // nonce
+          {
+            planets: zkBody.params.planets,
+            asc: zkBody.params.asc,
+            mc: zkBody.params.mc
+          }
+        );
+
+        if (!isValid) {
+          return res.status(400).json({
+            error: "ZK proof verification failed",
+            message: "The cryptographic proof could not be verified"
+          });
+        }
+        
+        // Save chart with VERIFIED ZK proof (raw birth data never stored)
         const chart = await storage.createChart({
           userId: null,
           inputsHash: zkBody.inputsHash,
@@ -68,6 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           zk: {
             enabled: true,
             proof: zkBody.zkProof,
+            verified: true, // Cryptographically verified!
             algoVersion: "western-equal-v1",
           },
         });

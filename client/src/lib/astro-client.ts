@@ -65,7 +65,8 @@ export async function calculateChartClientSide(
 }
 
 /**
- * Generate ZK commitment and proof
+ * Generate ZK proof using Poseidon hash (ZK-friendly cryptography)
+ * Creates a cryptographically sound commitment and proof
  */
 export async function generateZKProof(
   dob: string,
@@ -79,24 +80,33 @@ export async function generateZKProof(
   proof: string;
   salt: string;
 }> {
-  // Generate random salt
-  const salt = generateSalt();
-
-  // Create commitment (hash of inputs + salt)
-  const inputString = `${dob}|${tob}|${tz}|${lat.toFixed(4)}|${lon.toFixed(4)}|${salt}`;
-  const commitment = await hashSHA256(inputString);
-
-  // Create proof (hash that verifies calculation correctness)
-  const proofData = {
-    commitment,
-    positions: calculatedPositions.planets,
-    asc: calculatedPositions.asc,
-    mc: calculatedPositions.mc,
-    timestamp: Date.now(),
+  // Import Poseidon ZK proof system
+  const { generateZKProof: generatePoseidonProof } = await import('@/../../lib/zkproof/poseidon-proof');
+  
+  // Prepare inputs
+  const inputs = {
+    dob,
+    tob,
+    tz,
+    lat,
+    lon
   };
-  const proof = await hashSHA256(JSON.stringify(proofData));
-
-  return { commitment, proof, salt };
+  
+  // Prepare positions (cast to generic object for ZK proof)
+  const positions = {
+    planets: calculatedPositions.planets as unknown as { [key: string]: number },
+    asc: calculatedPositions.asc,
+    mc: calculatedPositions.mc
+  };
+  
+  // Generate Poseidon-based ZK proof
+  const zkProof = await generatePoseidonProof(inputs, positions);
+  
+  return {
+    commitment: zkProof.commitment,
+    proof: zkProof.proof,
+    salt: zkProof.nonce
+  };
 }
 
 // ============ Helper Functions ============
