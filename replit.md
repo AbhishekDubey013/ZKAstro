@@ -148,15 +148,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- **2025-10-17**: **Enhanced Agent Performance Showcase Page**
-  - ✅ **New API Endpoint**: `GET /api/agents/stats` returns comprehensive performance metrics
-  - ✅ **Performance Metrics**: Win rate, total predictions, average day scores per agent
-  - ✅ **Cosmic UI Design**: Gradient backgrounds, celestial theme with purple/teal accents
-  - ✅ **Visual Stats**: Progress bars for win rate, avg scores, and prediction volume
-  - ✅ **Agent Rankings**: Top performers highlighted with special badges and styling
-  - ✅ **Stats Overview**: Dashboard cards showing active agents, total predictions, total reputation
+- **2025-10-17**: **Cosmic UI Enhancements - Landing Page & Agent Observatory**
+  - ✅ **Landing Page Redesign**: 
+    - Animated cosmic background with gradient orbs and pulse effects
+    - Glowing Moon/Stars icons with blur effects
+    - Animated gradient title text
+    - Feature badges highlighting key platform capabilities
+    - Enhanced form card with cosmic borders and gradients
+    - Three info cards showcasing AI insights, privacy, and predictions
+    - Responsive cosmic design matching celestial narrative
+  - ✅ **Agent Performance Showcase Page**:
+    - New API endpoint: `GET /api/agents/stats` with comprehensive metrics
+    - Performance metrics: Win rate, total predictions, average day scores
+    - Gradient backgrounds with celestial purple/teal theme
+    - Visual progress bars for all metrics
+    - Top agent rankings with special badges (🏆 gold, ⚡ silver)
+    - Stats overview dashboard cards
   - 🐛 **Fixed**: PostgreSQL ROUND function error (cast to NUMERIC before rounding)
-  - ✅ **End-to-end tested**: All metrics display correctly, responsive layout verified
+  - ✅ **End-to-end tested**: Full flow verified - landing → chart creation → predictions → agent selection → leaderboard update
 
 - **2025-10-17**: **MAJOR UPGRADE - Real ZK-SNARK Implementation with Poseidon Hash**
   - ✅ **Poseidon ZK Proof System**: Replaced SHA-256 commitment with ZK-friendly Poseidon hash (BN254 field)

@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Sparkles, Calendar, Clock, MapPin, Shield } from "lucide-react";
+import { Sparkles, Calendar, Clock, MapPin, Shield, Stars, Zap, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -57,7 +57,7 @@ const commonTimezones = [
 export default function Landing() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [zkMode, setZkMode] = useState(true); // ZK mode enabled by default
+  const [zkMode, setZkMode] = useState(true);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -76,7 +76,6 @@ export default function Landing() {
       const lon = typeof values.lon === "number" ? values.lon : parseFloat(values.lon);
 
       if (zkMode) {
-        // ZK MODE: Calculate client-side and send only positions + proof
         const chartCalc = await calculateChartClientSide(
           values.dob,
           values.tob,
@@ -111,7 +110,6 @@ export default function Landing() {
         });
         return await response.json();
       } else {
-        // NORMAL MODE: Send birth data to server for calculation
         const response = await apiRequest("POST", "/api/chart", {
           dob: values.dob,
           tob: values.tob,
@@ -153,201 +151,288 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] bg-background">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
-        <div className="container max-w-4xl px-4 md:px-6 py-12 md:py-20">
-          <div className="text-center space-y-4 mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-              Discover Your Daily Cosmic Guidance
+    <div className="min-h-[calc(100vh-3.5rem)] bg-gradient-to-b from-background via-background to-primary/5 relative overflow-hidden">
+      {/* Animated Cosmic Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Gradient Orbs */}
+        <div className="absolute top-20 left-10 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="container max-w-6xl px-4 md:px-6 py-12 md:py-20 relative">
+        {/* Hero Section */}
+        <div className="text-center space-y-6 mb-16">
+          {/* Cosmic Title */}
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="relative">
+              <Moon className="h-12 w-12 text-primary animate-pulse" />
+              <div className="absolute inset-0 blur-2xl bg-primary/30 rounded-full animate-pulse" />
+            </div>
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
+              <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent animate-gradient">
+                Cosmic Predictions
+              </span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Create your Western natal chart and receive AI-powered daily predictions from competing astrology agents
-            </p>
+            <div className="relative">
+              <Stars className="h-12 w-12 text-secondary animate-pulse" />
+              <div className="absolute inset-0 blur-2xl bg-secondary/30 rounded-full animate-pulse" />
+            </div>
           </div>
 
-          {/* Chart Creation Form */}
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                Create Your Natal Chart
-              </CardTitle>
-              <CardDescription>
-                Enter your birth information to generate your Western Equal-house chart
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Date of Birth */}
+          {/* Subtitle */}
+          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            Unlock the secrets of the cosmos with{" "}
+            <span className="text-primary font-semibold">AI-powered astrology</span>
+          </p>
+
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Create your Western natal chart and receive personalized daily predictions 
+            from competing AI agents powered by real astronomical calculations
+          </p>
+
+          {/* Feature Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+              <Zap className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Real Astronomical Data</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/10 border border-secondary/20">
+              <Shield className="h-4 w-4 text-secondary" />
+              <span className="text-sm font-medium">Zero-Knowledge Privacy</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-chart-3/10 border border-chart-3/20">
+              <Stars className="h-4 w-4 text-chart-3" />
+              <span className="text-sm font-medium">Competing AI Agents</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Chart Creation Form */}
+        <Card className="max-w-2xl mx-auto border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 shadow-2xl">
+          <CardHeader className="border-b border-border/50 bg-gradient-to-r from-transparent via-primary/5 to-transparent">
+            <CardTitle className="flex items-center gap-3 text-2xl">
+              <div className="relative">
+                <Sparkles className="h-6 w-6 text-primary" />
+                <div className="absolute inset-0 blur-lg bg-primary/30 rounded-full" />
+              </div>
+              Create Your Natal Chart
+            </CardTitle>
+            <CardDescription className="text-base">
+              Enter your birth information to generate your Western Equal-house chart
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Date of Birth */}
+                <FormField
+                  control={form.control}
+                  name="dob"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-base">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        Date of Birth
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          placeholder="YYYY-MM-DD"
+                          className="h-11 border-primary/20 focus-visible:ring-primary"
+                          {...field}
+                          data-testid="input-dob"
+                        />
+                      </FormControl>
+                      <FormDescription>Your birth date (YYYY-MM-DD)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Time of Birth */}
+                <FormField
+                  control={form.control}
+                  name="tob"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-base">
+                        <Clock className="h-4 w-4 text-primary" />
+                        Time of Birth
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          className="h-11 border-primary/20 focus-visible:ring-primary"
+                          {...field}
+                          data-testid="input-tob"
+                        />
+                      </FormControl>
+                      <FormDescription>24-hour format (HH:MM)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Timezone */}
+                <FormField
+                  control={form.control}
+                  name="tz"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base">Timezone</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-11 border-primary/20 focus:ring-primary" data-testid="select-timezone">
+                            <SelectValue placeholder="Select timezone" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {commonTimezones.map((tz) => (
+                            <SelectItem key={tz.value} value={tz.value}>
+                              {tz.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>Your birth location timezone</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Birth Location */}
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="dob"
+                    name="lat"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          Date of Birth
+                        <FormLabel className="flex items-center gap-2 text-base">
+                          <MapPin className="h-4 w-4 text-secondary" />
+                          Latitude
                         </FormLabel>
                         <FormControl>
                           <Input
-                            type="date"
-                            placeholder="YYYY-MM-DD"
+                            type="number"
+                            step="0.0001"
+                            placeholder="40.7128"
+                            className="h-11 border-primary/20 focus-visible:ring-primary"
                             {...field}
-                            data-testid="input-dob"
+                            data-testid="input-latitude"
                           />
                         </FormControl>
-                        <FormDescription>Your birth date (YYYY-MM-DD)</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Time of Birth */}
                   <FormField
                     control={form.control}
-                    name="tob"
+                    name="lon"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          Time of Birth
+                        <FormLabel className="flex items-center gap-2 text-base">
+                          <MapPin className="h-4 w-4 text-secondary" />
+                          Longitude
                         </FormLabel>
                         <FormControl>
                           <Input
-                            type="time"
+                            type="number"
+                            step="0.0001"
+                            placeholder="-74.0060"
+                            className="h-11 border-primary/20 focus-visible:ring-primary"
                             {...field}
-                            data-testid="input-tob"
+                            data-testid="input-longitude"
                           />
                         </FormControl>
-                        <FormDescription>24-hour format (HH:MM)</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                </div>
 
-                  {/* Timezone */}
-                  <FormField
-                    control={form.control}
-                    name="tz"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Timezone</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-timezone">
-                              <SelectValue placeholder="Select timezone" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {commonTimezones.map((tz) => (
-                              <SelectItem key={tz.value} value={tz.value}>
-                                {tz.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>Your birth location timezone</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Birth Location */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="lat"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            Latitude
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.0001"
-                              placeholder="40.7128"
-                              {...field}
-                              data-testid="input-latitude"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="lon"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            Longitude
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.0001"
-                              placeholder="-74.0060"
-                              {...field}
-                              data-testid="input-longitude"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* ZK Privacy Mode Toggle */}
-                  <div className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
-                    <div className="flex items-start gap-3">
-                      <Shield className="h-5 w-5 mt-0.5 text-primary" />
-                      <div className="space-y-0.5">
-                        <div className="font-medium">Zero-Knowledge Privacy Mode</div>
-                        <div className="text-sm text-muted-foreground">
-                          Calculate chart locally in browser. Your birth data never leaves your device.
-                        </div>
+                {/* ZK Privacy Mode Toggle */}
+                <div className="flex items-center justify-between rounded-xl border border-primary/20 p-5 bg-gradient-to-r from-primary/5 to-secondary/5">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className="relative mt-0.5">
+                      <Shield className="h-6 w-6 text-primary" />
+                      <div className="absolute inset-0 blur-lg bg-primary/30 rounded-full" />
+                    </div>
+                    <div className="space-y-1 flex-1">
+                      <div className="font-semibold text-base">Zero-Knowledge Privacy Mode</div>
+                      <div className="text-sm text-muted-foreground leading-relaxed">
+                        Calculate chart locally in browser using cryptographic proofs. 
+                        Your birth data never leaves your device.
                       </div>
                     </div>
-                    <Switch
-                      checked={zkMode}
-                      onCheckedChange={setZkMode}
-                      data-testid="switch-zk-mode"
-                    />
                   </div>
+                  <Switch
+                    checked={zkMode}
+                    onCheckedChange={setZkMode}
+                    className="ml-4"
+                    data-testid="switch-zk-mode"
+                  />
+                </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={createChartMutation.isPending}
-                    data-testid="button-generate-chart"
-                  >
-                    {createChartMutation.isPending ? (
-                      <>Generating Chart...</>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        {zkMode ? "Generate Chart (ZK Mode)" : "Generate Chart"}
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full h-12 text-base bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all"
+                  disabled={createChartMutation.isPending}
+                  data-testid="button-generate-chart"
+                >
+                  {createChartMutation.isPending ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Generating Chart...
+                    </div>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      {zkMode ? "Generate Chart (ZK Mode)" : "Generate Chart"}
+                    </>
+                  )}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
 
-          {/* Info Section */}
-          <div className="mt-12 text-center text-sm text-muted-foreground max-w-2xl mx-auto">
-            <p>
-              Using Western tropical zodiac with Equal house system. Your chart data is stored securely
-              and used to generate personalized daily predictions.
+        {/* Info Section */}
+        <div className="mt-16 text-center space-y-6 max-w-3xl mx-auto">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <p className="text-sm">
+              Using Western tropical zodiac with Equal house system powered by VSOP87 astronomical calculations
             </p>
+            <Sparkles className="h-4 w-4 text-secondary" />
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-4 pt-8">
+            <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20">
+              <div className="text-3xl mb-3">🔮</div>
+              <h3 className="font-semibold mb-2">AI-Powered Insights</h3>
+              <p className="text-sm text-muted-foreground">
+                Competing agents analyze your chart using different methodologies
+              </p>
+            </div>
+            
+            <div className="p-6 rounded-xl bg-gradient-to-br from-secondary/10 to-transparent border border-secondary/20">
+              <div className="text-3xl mb-3">🔐</div>
+              <h3 className="font-semibold mb-2">Privacy First</h3>
+              <p className="text-sm text-muted-foreground">
+                Zero-knowledge proofs keep your birth data completely private
+              </p>
+            </div>
+            
+            <div className="p-6 rounded-xl bg-gradient-to-br from-chart-3/10 to-transparent border border-chart-3/20">
+              <div className="text-3xl mb-3">✨</div>
+              <h3 className="font-semibold mb-2">Daily Predictions</h3>
+              <p className="text-sm text-muted-foreground">
+                Receive personalized cosmic guidance based on real transits
+              </p>
+            </div>
           </div>
         </div>
       </div>
