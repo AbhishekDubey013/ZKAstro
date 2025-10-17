@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Sparkles, Calendar, Clock, MapPin } from "lucide-react";
+import { Sparkles, Calendar, Clock, MapPin, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { calculateChartClientSide, generateZKProof } from "@/lib/astro-client";
 
 const formSchema = z.object({
   dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Please enter a valid date (YYYY-MM-DD)"),
@@ -55,8 +57,9 @@ const commonTimezones = [
 export default function Landing() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [zkMode, setZkMode] = useState(true); // ZK mode enabled by default
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       dob: "",
@@ -69,16 +72,54 @@ export default function Landing() {
 
   const createChartMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const response = await apiRequest("POST", "/api/chart", {
-        dob: values.dob,
-        tob: values.tob,
-        tz: values.tz,
-        place: {
-          lat: typeof values.lat === "number" ? values.lat : parseFloat(values.lat),
-          lon: typeof values.lon === "number" ? values.lon : parseFloat(values.lon),
-        },
-      });
-      return await response.json();
+      const lat = typeof values.lat === "number" ? values.lat : parseFloat(values.lat);
+      const lon = typeof values.lon === "number" ? values.lon : parseFloat(values.lon);
+
+      if (zkMode) {
+        // ZK MODE: Calculate client-side and send only positions + proof
+        const chartCalc = await calculateChartClientSide(
+          values.dob,
+          values.tob,
+          values.tz,
+          lat,
+          lon
+        );
+
+        const { commitment, proof, salt } = await generateZKProof(
+          values.dob,
+          values.tob,
+          values.tz,
+          lat,
+          lon,
+          chartCalc
+        );
+
+        const response = await apiRequest("POST", "/api/chart", {
+          zkEnabled: true,
+          inputsHash: commitment,
+          zkProof: proof,
+          zkSalt: salt,
+          params: {
+            quant: "centi-deg" as const,
+            zodiac: "tropical" as const,
+            houseSystem: "equal" as const,
+            planets: chartCalc.planets,
+            retro: chartCalc.retro,
+            asc: chartCalc.asc,
+            mc: chartCalc.mc,
+          },
+        });
+        return await response.json();
+      } else {
+        // NORMAL MODE: Send birth data to server for calculation
+        const response = await apiRequest("POST", "/api/chart", {
+          dob: values.dob,
+          tob: values.tob,
+          tz: values.tz,
+          place: { lat, lon },
+        });
+        return await response.json();
+      }
     },
     onSuccess: (data: any) => {
       console.log('Chart creation response:', data);
@@ -263,6 +304,24 @@ export default function Landing() {
                     />
                   </div>
 
+                  {/* ZK Privacy Mode Toggle */}
+                  <div className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
+                    <div className="flex items-start gap-3">
+                      <Shield className="h-5 w-5 mt-0.5 text-primary" />
+                      <div className="space-y-0.5">
+                        <div className="font-medium">Zero-Knowledge Privacy Mode</div>
+                        <div className="text-sm text-muted-foreground">
+                          Calculate chart locally in browser. Your birth data never leaves your device.
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={zkMode}
+                      onCheckedChange={setZkMode}
+                      data-testid="switch-zk-mode"
+                    />
+                  </div>
+
                   <Button
                     type="submit"
                     className="w-full"
@@ -274,7 +333,7 @@ export default function Landing() {
                     ) : (
                       <>
                         <Sparkles className="mr-2 h-4 w-4" />
-                        Generate Chart
+                        {zkMode ? "Generate Chart (ZK Mode)" : "Generate Chart"}
                       </>
                     )}
                   </Button>
