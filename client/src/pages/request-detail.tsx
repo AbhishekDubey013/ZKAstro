@@ -91,9 +91,10 @@ export default function RequestDetail() {
 
   const selectAnswerMutation = useMutation({
     mutationFn: async (answerId: string) => {
-      return await apiRequest("POST", `/api/request/${requestId}/select`, {
+      const response = await apiRequest("POST", `/api/request/${requestId}/select`, {
         answerId,
       });
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/request", requestId] });

@@ -69,7 +69,7 @@ export default function Landing() {
 
   const createChartMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      return await apiRequest("POST", "/api/chart", {
+      const response = await apiRequest("POST", "/api/chart", {
         dob: values.dob,
         tob: values.tob,
         tz: values.tz,
@@ -78,13 +78,25 @@ export default function Landing() {
           lon: typeof values.lon === "number" ? values.lon : parseFloat(values.lon),
         },
       });
+      return await response.json();
     },
     onSuccess: (data: any) => {
+      console.log('Chart creation response:', data);
+      const chartId = data?.chartId;
+      if (!chartId) {
+        console.error('No chartId in response:', data);
+        toast({
+          title: "Error",
+          description: "Chart created but missing ID",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Chart created successfully",
         description: "Your natal chart has been computed.",
       });
-      setLocation(`/chart/${data.chartId}`);
+      setLocation(`/chart/${chartId}`);
     },
     onError: (error: any) => {
       toast({

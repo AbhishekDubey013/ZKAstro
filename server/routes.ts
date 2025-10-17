@@ -17,6 +17,20 @@ import {
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // GET /api/chart/:id - Get a chart by ID
+  app.get("/api/chart/:id", async (req, res) => {
+    try {
+      const chart = await storage.getChart(req.params.id);
+      if (!chart) {
+        return res.status(404).json({ error: "Chart not found" });
+      }
+      res.json(chart);
+    } catch (error: any) {
+      console.error("Error getting chart:", error);
+      res.status(500).json({ error: error.message || "Failed to get chart" });
+    }
+  });
+
   // POST /api/chart - Create a new natal chart
   app.post("/api/chart", async (req, res) => {
     try {

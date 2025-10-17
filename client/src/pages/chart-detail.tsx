@@ -48,10 +48,10 @@ function centiDegToSign(centiDeg: number): { sign: string; degree: number } {
 }
 
 export default function ChartDetail() {
-  const [, params] = useRoute("/chart/:id");
+  const [, routeParams] = useRoute("/chart/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const chartId = params?.id;
+  const chartId = routeParams?.id;
 
   const [targetDate, setTargetDate] = useState(() => {
     const today = new Date();
@@ -65,11 +65,12 @@ export default function ChartDetail() {
 
   const createRequestMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", "/api/request", {
+      const response = await apiRequest("POST", "/api/request", {
         chartId,
         question: "How will my day go?",
         targetDate,
       });
+      return await response.json();
     },
     onSuccess: (data: any) => {
       toast({
