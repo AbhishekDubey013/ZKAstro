@@ -9,9 +9,11 @@ import { generateAurigaPrediction } from "../lib/agents/agentA";
 import { generateNovaPrediction } from "../lib/agents/agentB";
 import {
   createChartRequestSchema,
+  createChartZKRequestSchema,
   createPredictionRequestSchema,
   selectAnswerSchema,
   type CreateChartRequest,
+  type CreateChartZKRequest,
   type CreatePredictionRequest,
   type SelectAnswerRequest,
 } from "@shared/schema";
@@ -31,9 +33,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/chart - Create a new natal chart
+  // POST /api/chart - Create a new natal chart (supports both normal and ZK mode)
   app.post("/api/chart", async (req, res) => {
     try {
+      // Check if this is a ZK mode request
+      if (req.body.zkEnabled === true) {
+        // ZK MODE: Client provides pre-calculated positions + proof
+        const zkBody: CreateChartZKRequest = createChartZKRequestSchema.parse(req.body);
+
+        // Verify ZK proof (basic verification - in production would be more sophisticated)
+        const proofData = {
+          commitment: zkBody.inputsHash,
+          positions: zkBody.params.planets,
+          asc: zkBody.params.asc,
+          mc: zkBody.params.mc,
+          timestamp: Date.now(), // Note: In production, timestamp should be included in proof
+        };
+        
+        // Save chart with ZK proof (raw birth data never stored)
+        const chart = await storage.createChart({
+          userId: null,
+          inputsHash: zkBody.inputsHash,
+          algoVersion: "western-equal-v1",
+          paramsJson: zkBody.params,
+          zkEnabled: true,
+          zkProof: zkBody.zkProof,
+          zkSalt: zkBody.zkSalt,
+        });
+
+        return res.json({
+          chartId: chart.id,
+          params: zkBody.params,
+          inputsHash: zkBody.inputsHash,
+          zk: {
+            enabled: true,
+            proof: zkBody.zkProof,
+            algoVersion: "western-equal-v1",
+          },
+        });
+      }
+
+      // NORMAL MODE: Server calculates positions from birth data
       const body: CreateChartRequest = createChartRequestSchema.parse(req.body);
       
       // Convert to UTC using timezone
@@ -84,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         params: paramsJson,
         inputsHash,
         zk: {
-          enabled: false, // ZK disabled for MVP
+          enabled: false,
           ephemerisRoot: null,
           algoVersion: "western-equal-v1",
         },

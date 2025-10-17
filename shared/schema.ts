@@ -49,6 +49,8 @@ export const charts = pgTable("charts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   // ZK / on-chain fields (optional)
   zkEnabled: boolean("zk_enabled").default(false).notNull(),
+  zkProof: text("zk_proof"), // ZK proof that positions were correctly calculated
+  zkSalt: text("zk_salt"), // Salt used for commitment
   ephemerisRoot: text("ephemeris_root"),
   pCid: text("p_cid"),
   chain: text("chain"),
@@ -190,6 +192,37 @@ export const createChartRequestSchema = z.object({
   zk: z.boolean().optional(),
 });
 
+// ZK mode chart creation - client provides pre-calculated positions
+export const createChartZKRequestSchema = z.object({
+  zkEnabled: z.literal(true),
+  inputsHash: z.string(), // Commitment to birth data
+  zkProof: z.string(), // Proof of correct calculation
+  zkSalt: z.string(), // Salt for verification
+  params: z.object({
+    quant: z.literal("centi-deg"),
+    zodiac: z.literal("tropical"),
+    houseSystem: z.literal("equal"),
+    planets: z.object({
+      sun: z.number(),
+      moon: z.number(),
+      mercury: z.number(),
+      venus: z.number(),
+      mars: z.number(),
+      jupiter: z.number(),
+      saturn: z.number(),
+    }),
+    retro: z.object({
+      mercury: z.boolean(),
+      venus: z.boolean(),
+      mars: z.boolean(),
+      jupiter: z.boolean(),
+      saturn: z.boolean(),
+    }),
+    asc: z.number(),
+    mc: z.number(),
+  }),
+});
+
 export const createPredictionRequestSchema = z.object({
   chartId: z.string(),
   question: z.string().min(1).max(500),
@@ -220,5 +253,6 @@ export type ReputationEvent = typeof reputationEvents.$inferSelect;
 export type InsertReputationEvent = z.infer<typeof insertReputationEventSchema>;
 
 export type CreateChartRequest = z.infer<typeof createChartRequestSchema>;
+export type CreateChartZKRequest = z.infer<typeof createChartZKRequestSchema>;
 export type CreatePredictionRequest = z.infer<typeof createPredictionRequestSchema>;
 export type SelectAnswerRequest = z.infer<typeof selectAnswerSchema>;
