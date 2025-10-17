@@ -10,6 +10,12 @@
  * 3. Response: proof data that verifies without revealing inputs
  */
 
+// Polyfill Buffer for browser compatibility
+import { Buffer } from 'buffer';
+if (typeof globalThis.Buffer === 'undefined') {
+  globalThis.Buffer = Buffer;
+}
+
 // @ts-ignore - circomlibjs has no type definitions
 import { buildPoseidon } from "circomlibjs";
 

@@ -44,6 +44,7 @@
     "@tanstack/react-query": "^5.60.5",
     "@types/luxon": "^3.7.1",
     "astronomia": "^4.2.0",
+    "buffer": "^6.0.3",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
     "class-variance-authority": "^0.7.1",
