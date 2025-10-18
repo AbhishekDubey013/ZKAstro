@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Progress } from "@/components/ui/progress";
+import { PredictionChat } from "@/components/prediction-chat";
 
 interface RequestData {
   request: {
@@ -188,115 +189,120 @@ export default function RequestDetail() {
 
       {/* Agent Predictions - Side by Side */}
       {answers.length >= 2 && (
-        <div className="grid lg:grid-cols-2 gap-6">
-          {answers.map((answer) => {
-            const isSelected = request.selectedAnswerId === answer.id;
-            const factorsList = answer.factors.split(';').map(f => f.trim()).filter(Boolean);
-            const highlightsList = answer.highlights.split('\n').map(h => h.trim()).filter(Boolean);
+        <>
+          <div className="grid lg:grid-cols-2 gap-6">
+            {answers.map((answer) => {
+              const isSelected = request.selectedAnswerId === answer.id;
+              const factorsList = answer.factors.split(';').map(f => f.trim()).filter(Boolean);
+              const highlightsList = answer.highlights.split('\n').map(h => h.trim()).filter(Boolean);
 
-            return (
-              <Card
-                key={answer.id}
-                className={`relative ${
-                  isSelected ? "border-primary/50 bg-primary/5" : ""
-                }`}
-                data-testid={`answer-card-${answer.agent.handle}`}
-              >
-                {isSelected && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
-                    <Check className="h-3 w-3" />
-                    Selected
-                  </div>
-                )}
-
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <CardTitle className="font-serif text-xl mb-1">
-                        {answer.agent.handle}
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        {answer.agent.method}
-                      </CardDescription>
+              return (
+                <Card
+                  key={answer.id}
+                  className={`relative ${
+                    isSelected ? "border-primary/50 bg-primary/5" : ""
+                  }`}
+                  data-testid={`answer-card-${answer.agent.handle}`}
+                >
+                  {isSelected && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      Selected
                     </div>
-                    <Badge variant="outline" className="flex items-center gap-1" data-testid={`reputation-${answer.agent.handle}`}>
-                      <TrendingUp className="h-3 w-3" />
-                      {answer.agent.reputation}
-                    </Badge>
-                  </div>
-                </CardHeader>
+                  )}
 
-                <CardContent className="space-y-6">
-                  {/* Day Score */}
-                  <div className="flex justify-center">
-                    <ScoreCircle score={answer.dayScore} />
-                  </div>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <CardTitle className="font-serif text-xl mb-1">
+                          {answer.agent.handle}
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          {answer.agent.method}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="outline" className="flex items-center gap-1" data-testid={`reputation-${answer.agent.handle}`}>
+                        <TrendingUp className="h-3 w-3" />
+                        {answer.agent.reputation}
+                      </Badge>
+                    </div>
+                  </CardHeader>
 
-                  {/* Summary */}
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                      Daily Reading
-                    </h4>
-                    <p className="text-sm leading-relaxed" data-testid={`summary-${answer.agent.handle}`}>
-                      {answer.summary}
-                    </p>
-                  </div>
+                  <CardContent className="space-y-6">
+                    {/* Day Score */}
+                    <div className="flex justify-center">
+                      <ScoreCircle score={answer.dayScore} />
+                    </div>
 
-                  {/* Highlights */}
-                  {highlightsList.length > 0 && (
+                    {/* Summary */}
                     <div className="space-y-2">
                       <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                        Key Highlights
+                        Daily Reading
                       </h4>
-                      <ul className="space-y-1 text-sm">
-                        {highlightsList.map((highlight, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <span className="text-primary mt-0.5">•</span>
-                            <span>{highlight.replace(/^-\s*/, '')}</span>
-                          </li>
+                      <p className="text-sm leading-relaxed" data-testid={`summary-${answer.agent.handle}`}>
+                        {answer.summary}
+                      </p>
+                    </div>
+
+                    {/* Highlights */}
+                    {highlightsList.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                          Key Highlights
+                        </h4>
+                        <ul className="space-y-1 text-sm">
+                          {highlightsList.map((highlight, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span>{highlight.replace(/^-\s*/, '')}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Astrological Factors */}
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                        Cosmic Factors
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {factorsList.map((factor, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            {factor}
+                          </Badge>
                         ))}
-                      </ul>
+                      </div>
                     </div>
-                  )}
 
-                  {/* Astrological Factors */}
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                      Cosmic Factors
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {factorsList.map((factor, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
-                          {factor}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                    {/* Action Button */}
+                    {!isSettled && (
+                      <Button
+                        className="w-full"
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => selectAnswerMutation.mutate(answer.id)}
+                        disabled={selectAnswerMutation.isPending}
+                        data-testid={`button-select-${answer.agent.handle}`}
+                      >
+                        {isSelected ? (
+                          <>
+                            <Check className="mr-2 h-4 w-4" />
+                            Selected
+                          </>
+                        ) : (
+                          "Choose This Prediction"
+                        )}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
 
-                  {/* Action Button */}
-                  {!isSettled && (
-                    <Button
-                      className="w-full"
-                      variant={isSelected ? "default" : "outline"}
-                      onClick={() => selectAnswerMutation.mutate(answer.id)}
-                      disabled={selectAnswerMutation.isPending}
-                      data-testid={`button-select-${answer.agent.handle}`}
-                    >
-                      {isSelected ? (
-                        <>
-                          <Check className="mr-2 h-4 w-4" />
-                          Selected
-                        </>
-                      ) : (
-                        "Choose This Prediction"
-                      )}
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+          {/* Interactive Chat - Ask follow-up questions */}
+          <PredictionChat requestId={request.id} />
+        </>
       )}
 
       {/* Navigation */}
