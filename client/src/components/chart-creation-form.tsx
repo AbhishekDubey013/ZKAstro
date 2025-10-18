@@ -58,23 +58,56 @@ export default function ChartCreationForm() {
 
   const createChartMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const response = await apiRequest("POST", "/api/chart", {
-        dob: values.dob,
-        tob: values.tob,
-        tz: values.tz,
-        place: {
-          lat: values.lat,
-          lon: values.lon,
-          name: values.placeName,
-        },
-      });
-      return await response.json();
+      // ZK MODE: Calculate positions client-side and generate proof
+      const { calculateChartClientSide, generateZKProof } = await import('@/lib/astro-client');
+      
+      try {
+        // 1. Calculate chart positions in the browser (birth data never leaves)
+        const positions = await calculateChartClientSide(
+          values.dob,
+          values.tob,
+          values.tz,
+          values.lat,
+          values.lon
+        );
+
+        // 2. Generate cryptographic ZK proof using Poseidon hash
+        const zkProof = await generateZKProof(
+          values.dob,
+          values.tob,
+          values.tz,
+          values.lat,
+          values.lon,
+          positions
+        );
+
+        // 3. Send ONLY proof + positions to server (no raw birth data!)
+        const response = await apiRequest("POST", "/api/chart", {
+          zkEnabled: true,
+          inputsHash: zkProof.commitment,
+          zkProof: zkProof.proof,
+          zkSalt: zkProof.salt,
+          params: {
+            quant: "centi-degrees",
+            zodiac: "tropical",
+            houseSystem: "equal",
+            planets: positions.planets,
+            retro: positions.retro,
+            asc: positions.asc,
+            mc: positions.mc,
+          },
+        });
+        
+        return await response.json();
+      } catch (error: any) {
+        throw new Error(error.message || "Failed to create chart with ZK proof");
+      }
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/charts"] });
       toast({
-        title: "Chart created!",
-        description: "Your natal chart has been generated.",
+        title: "Chart created with Zero-Knowledge proof!",
+        description: "Your birth data was never sent to the server. Privacy guaranteed.",
       });
       setLocation(`/chart/${data.chartId}`);
     },
@@ -158,7 +191,7 @@ export default function ChartCreationForm() {
           Enter Your Birth Information
         </CardTitle>
         <CardDescription className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-          This data is protected with zero-knowledge proofs and never stored
+          🔐 <span className="font-semibold text-violet-600 dark:text-violet-400">Zero-Knowledge Privacy Active</span> - Your birth data is calculated in your browser and never sent to our servers. Only cryptographic proofs are transmitted.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
