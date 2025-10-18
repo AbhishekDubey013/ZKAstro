@@ -6,6 +6,7 @@ import { LogOut, Plus, Star, User, Calendar, Clock, MapPin } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { usePrivy } from "@privy-io/react-auth";
+import type { Chart } from "@shared/schema";
 import ChartCreationForm from "@/components/chart-creation-form";
 
 export default function Dashboard() {
@@ -14,7 +15,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
 
   // Fetch user's charts
-  const { data: charts, isLoading: chartsLoading } = useQuery({
+  const { data: charts, isLoading: chartsLoading } = useQuery<Chart[]>({
     queryKey: ["/api/charts"],
     enabled: !!user,
   });
