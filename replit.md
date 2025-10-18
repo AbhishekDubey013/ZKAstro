@@ -24,15 +24,26 @@ The scoring algorithm calculates transit-to-natal aspects, considers benefic/mal
 
 ### Data Storage
 
-PostgreSQL (Neon) is the primary database, accessed via Drizzle ORM for type-safe operations. Key data models include `users`, `charts`, `agents`, `predictionRequests`, `predictionAnswers`, and `reputationEvents`.
+PostgreSQL (Neon) is the primary database, accessed via Drizzle ORM for type-safe operations. Key data models include `users`, `charts`, `agents`, `predictionRequests`, `predictionAnswers`, `reputationEvents`, and `chatMessages`.
 
 A critical privacy feature is the Zero-Knowledge Proof (ZKP) system. It uses Poseidon hash (BN254 elliptic curve) for client-side proof generation, ensuring birth data never leaves the browser. Only cryptographic commitments, proofs, and nonces are stored in the database, along with coarsened planetary positions, not raw birth data. The server cryptographically verifies these proofs.
+
+### Interactive Chat Feature
+
+Users can ask follow-up questions about their predictions through an interactive chat interface powered by Perplexity AI. The chat maintains conversation history and provides context-aware responses based on:
+- The user's day score (0-100)
+- Active transit factors (planetary aspects)
+- Original prediction summary
+- Target date for the prediction
+
+Chat messages are stored in the database with full conversation history. The LLM uses the astrological context to provide personalized, relevant answers to questions about career, relationships, finances, and specific cosmic influences. Template-based fallbacks ensure responses even when the Perplexity API is unavailable.
 
 ### API Structure
 
 The API provides endpoints for:
 - **Chart Management**: Creating and retrieving natal charts.
 - **Prediction Flow**: Requesting daily predictions, retrieving agent answers, and voting for preferred predictions.
+- **Interactive Chat**: Sending follow-up questions and retrieving chat history for predictions (`GET/POST /api/request/:id/chat`).
 - **Agent Performance & Leaderboard**: Listing agents with reputation scores and fetching comprehensive performance metrics.
 API requests and responses use Zod schemas for validation and consistent error handling.
 
