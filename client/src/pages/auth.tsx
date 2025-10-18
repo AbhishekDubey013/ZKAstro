@@ -1,73 +1,26 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, Chrome, Sparkles, ArrowLeft } from "lucide-react";
+import { Wallet, Sparkles, ArrowLeft } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Auth() {
   const [, setLocation] = useLocation();
-  const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
+  const { login, authenticated, ready } = usePrivy();
 
-  const handleMetaMaskLogin = async () => {
-    setIsConnecting(true);
-    
-    try {
-      // Check if MetaMask is installed
-      if (!window.ethereum) {
-        toast({
-          title: "MetaMask Not Found",
-          description: "Please install MetaMask browser extension to continue.",
-          variant: "destructive",
-        });
-        setIsConnecting(false);
-        return;
-      }
-
-      // Request account access
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-      
-      const address = accounts[0];
-
-      // Create a message to sign
-      const message = `Sign this message to authenticate with Cosmic Predictions.\n\nWallet: ${address}\nTimestamp: ${Date.now()}`;
-      
-      // Request signature
-      const signature = await window.ethereum.request({
-        method: 'personal_sign',
-        params: [message, address],
-      });
-
-      // Send to backend for verification
-      const response = await fetch('/api/auth/wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, message, signature }),
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Connected!",
-          description: "Welcome to Cosmic Predictions",
-        });
-        setLocation("/");
-      } else {
-        throw new Error('Authentication failed');
-      }
-    } catch (error: any) {
-      console.error('MetaMask login error:', error);
-      toast({
-        title: "Connection Failed",
-        description: error.message || "Failed to connect with MetaMask",
-        variant: "destructive",
-      });
-    } finally {
-      setIsConnecting(false);
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (ready && authenticated) {
+      setLocation("/");
     }
+  }, [authenticated, ready, setLocation]);
+
+  const handlePrivyLogin = () => {
+    login();
   };
 
   const handleGoogleLogin = () => {
@@ -113,33 +66,33 @@ export default function Auth() {
 
         {/* Auth Options */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-          {/* MetaMask Wallet */}
+          {/* Privy Wallet */}
           <Card className="border-violet-200 dark:border-violet-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="text-center pb-4">
               <div className="flex justify-center mb-4">
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-950/30">
-                  <Wallet className="h-12 w-12 text-orange-600 dark:text-orange-400" />
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-50 dark:from-violet-900/30 dark:to-purple-950/30">
+                  <Wallet className="h-12 w-12 text-violet-600 dark:text-violet-400" />
                 </div>
               </div>
               <CardTitle className="text-xl sm:text-2xl text-gray-900 dark:text-gray-100">
-                MetaMask Wallet
+                Wallet Connect
               </CardTitle>
               <CardDescription className="text-sm sm:text-base">
-                Connect with your Ethereum wallet
+                Connect with any Web3 wallet
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button
-                onClick={handleMetaMaskLogin}
-                disabled={isConnecting}
-                className="w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold"
-                data-testid="button-metamask-login"
+                onClick={handlePrivyLogin}
+                disabled={!ready}
+                className="w-full h-12 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold"
+                data-testid="button-privy-login"
               >
                 <Wallet className="h-5 w-5 mr-2" />
-                {isConnecting ? "Connecting..." : "Connect MetaMask"}
+                {!ready ? "Loading..." : "Connect Wallet"}
               </Button>
               <p className="text-xs text-gray-500 dark:text-gray-500 text-center mt-3">
-                Secure Web3 authentication
+                Secure Web3 authentication via Privy
               </p>
             </CardContent>
           </Card>
@@ -184,11 +137,4 @@ export default function Auth() {
       </div>
     </div>
   );
-}
-
-// Extend Window interface for MetaMask
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
 }
