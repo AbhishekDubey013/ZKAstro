@@ -17,7 +17,10 @@ export default function Dashboard() {
   // Fetch user's charts
   const { data: charts, isLoading: chartsLoading } = useQuery<Chart[]>({
     queryKey: ["/api/charts"],
-    enabled: !!user,
+    enabled: !!user && !isPrivyAuth, // Only query if NOT using Privy (backend won't recognize Privy auth)
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 
   const handleLogout = () => {
