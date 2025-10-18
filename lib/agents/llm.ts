@@ -177,3 +177,98 @@ function generateTemplateHighlights(dayScore: number, factors: string[]): string
 
   return highlights.map(h => `- ${h}`).join('\n');
 }
+
+/**
+ * Generate chat response using prediction context
+ */
+export async function generateChatResponse(
+  userQuestion: string,
+  context: {
+    dayScore: number;
+    transitFactors: string[];
+    predictionSummary: string;
+    targetDate: string;
+    agentPersonality?: string;
+  },
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+): Promise<string> {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+
+  if (!apiKey) {
+    // Return template-based response if no API key
+    return `Based on your prediction (Day Score: ${context.dayScore}/100), ${generateTemplateResponse(userQuestion, context)}`;
+  }
+
+  try {
+    const messages: PerplexityMessage[] = [
+      {
+        role: 'system',
+        content: `You are an expert Western astrologer providing personalized guidance. ${context.agentPersonality ? `Your personality: ${context.agentPersonality}.` : ''} 
+
+You are helping a user understand their daily prediction for ${context.targetDate}.
+
+Prediction Context:
+- Day Score: ${context.dayScore}/100
+- Astrological Factors: ${context.transitFactors.join('; ')}
+- Original Prediction: ${context.predictionSummary}
+
+Respond conversationally, drawing on the astrological context. Be specific, empathetic, and practical. Reference the planetary transits when relevant.`,
+      },
+    ];
+
+    // Add conversation history (limit to last 5 messages to avoid token limits)
+    const recentHistory = conversationHistory.slice(-5);
+    messages.push(...recentHistory);
+
+    // Add current user question
+    messages.push({
+      role: 'user',
+      content: userQuestion,
+    });
+
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-sonar-small-128k-online',
+        messages,
+        temperature: 0.7,
+        max_tokens: 400,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Perplexity API error: ${response.statusText}`);
+    }
+
+    const data: PerplexityResponse = await response.json();
+    const answer = data.choices[0]?.message?.content || '';
+
+    return answer.trim() || generateTemplateResponse(userQuestion, context);
+  } catch (error) {
+    console.error('Error calling Perplexity chat API:', error);
+    return generateTemplateResponse(userQuestion, context);
+  }
+}
+
+function generateTemplateResponse(question: string, context: { dayScore: number; transitFactors: string[] }): string {
+  const lowerQ = question.toLowerCase();
+  
+  if (lowerQ.includes('career') || lowerQ.includes('work') || lowerQ.includes('job')) {
+    if (context.dayScore >= 60) {
+      return `With your ${context.dayScore}/100 day score, career matters look favorable. ${context.transitFactors[0] || 'The current planetary alignments'} supports professional initiatives. Consider taking thoughtful action on work-related goals.`;
+    } else {
+      return `Your day score of ${context.dayScore}/100 suggests proceeding carefully with career matters. This may be a better time for planning and preparation rather than major moves. ${context.transitFactors[0] || 'The current transits'} indicates patience will serve you well.`;
+    }
+  } else if (lowerQ.includes('love') || lowerQ.includes('relationship') || lowerQ.includes('romance')) {
+    return `Regarding relationships, ${context.transitFactors.find(f => f.includes('Venus') || f.includes('Moon')) || 'the current cosmic climate'} influences your emotional connections. With a day score of ${context.dayScore}/100, approach heart matters with both openness and awareness.`;
+  } else if (lowerQ.includes('money') || lowerQ.includes('finance') || lowerQ.includes('wealth')) {
+    return `For financial matters, your ${context.dayScore}/100 score suggests ${context.dayScore >= 60 ? 'favorable conditions for financial decisions, though always use practical judgment' : 'taking a cautious approach. Review rather than rush'}. ${context.transitFactors[0] || 'Current planetary positions'} recommends mindful consideration.`;
+  } else {
+    return `Based on your prediction with a ${context.dayScore}/100 day score and ${context.transitFactors[0] || 'current astrological factors'}, I'd suggest staying attuned to the cosmic energies while maintaining your practical wisdom. Each day brings its own unique opportunities and lessons.`;
+  }
+}
