@@ -88,7 +88,7 @@ export default function ChartCreationForm() {
           zkProof: zkProof.proof,
           zkSalt: zkProof.salt,
           params: {
-            quant: "centi-degrees",
+            quant: "centi-deg",
             zodiac: "tropical",
             houseSystem: "equal",
             planets: positions.planets,
