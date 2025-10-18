@@ -119,6 +119,7 @@ export const predictionRequestsRelations = relations(predictionRequests, ({ one,
     references: [charts.id],
   }),
   answers: many(predictionAnswers),
+  chatMessages: many(chatMessages),
 }));
 
 // Prediction answers table
@@ -160,6 +161,32 @@ export const reputationEventsRelations = relations(reputationEvents, ({ one }) =
   }),
 }));
 
+// Chat messages table - Interactive Q&A about predictions
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  predictionRequestId: varchar("prediction_request_id").references(() => predictionRequests.id).notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  role: text("role").notNull(), // 'user' | 'assistant'
+  content: text("content").notNull(),
+  context: jsonb("context").$type<{
+    dayScore?: number;
+    transitFactors?: string[];
+    agentPersonality?: string;
+  }>(), // Astrological context
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  predictionRequest: one(predictionRequests, {
+    fields: [chatMessages.predictionRequestId],
+    references: [predictionRequests.id],
+  }),
+  user: one(users, {
+    fields: [chatMessages.userId],
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -190,6 +217,11 @@ export const insertPredictionAnswerSchema = createInsertSchema(predictionAnswers
 });
 
 export const insertReputationEventSchema = createInsertSchema(reputationEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
   id: true,
   createdAt: true,
 });
