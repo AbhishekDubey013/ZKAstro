@@ -16,8 +16,9 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Sparkles, Calendar, Clock, MapPin } from "lucide-react";
+import { Sparkles, Calendar, Clock, MapPin, Navigation } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useEffect, useState } from "react";
 
 const formSchema = z.object({
   dob: z.string().min(1, "Date of birth is required"),
@@ -31,18 +32,29 @@ const formSchema = z.object({
 export default function ChartCreationForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [detectingLocation, setDetectingLocation] = useState(false);
+
+  // Auto-detect system timezone
+  const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       dob: "",
       tob: "",
-      tz: "America/New_York",
+      tz: systemTimezone || "America/New_York",
       lat: 0,
       lon: 0,
       placeName: "",
     },
   });
+
+  // Auto-fill timezone on mount
+  useEffect(() => {
+    if (systemTimezone) {
+      form.setValue("tz", systemTimezone);
+    }
+  }, [systemTimezone, form]);
 
   const createChartMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
@@ -77,6 +89,65 @@ export default function ChartCreationForm() {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     createChartMutation.mutate(values);
+  };
+
+  const detectLocation = async () => {
+    setDetectingLocation(true);
+    
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support location detection.",
+        variant: "destructive",
+      });
+      setDetectingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        form.setValue("lat", latitude);
+        form.setValue("lon", longitude);
+
+        // Try to get place name from reverse geocoding
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await response.json();
+          
+          if (data.address) {
+            const city = data.address.city || data.address.town || data.address.village || "";
+            const state = data.address.state || "";
+            const country = data.address.country || "";
+            const placeName = [city, state, country].filter(Boolean).join(", ");
+            
+            if (placeName) {
+              form.setValue("placeName", placeName);
+            }
+          }
+        } catch (error) {
+          console.error("Reverse geocoding failed:", error);
+        }
+
+        toast({
+          title: "Location detected!",
+          description: `Latitude: ${latitude.toFixed(4)}, Longitude: ${longitude.toFixed(4)}`,
+        });
+        
+        setDetectingLocation(false);
+      },
+      (error) => {
+        toast({
+          title: "Location detection failed",
+          description: error.message || "Please enter your location manually.",
+          variant: "destructive",
+        });
+        setDetectingLocation(false);
+      }
+    );
   };
 
   return (
@@ -151,54 +222,74 @@ export default function ChartCreationForm() {
                       data-testid="input-timezone"
                     />
                   </FormControl>
-                  <FormDescription className="text-xs">IANA timezone (e.g., America/New_York)</FormDescription>
+                  <FormDescription className="text-xs">
+                    Auto-detected: {systemTimezone}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="lat"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-gray-700 dark:text-gray-300">Latitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        placeholder="40.7128"
-                        className="h-11 border-violet-200 dark:border-violet-800"
-                        {...field}
-                        data-testid="input-lat"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <FormLabel className="text-gray-700 dark:text-gray-300">Location</FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={detectLocation}
+                  disabled={detectingLocation}
+                  className="border-violet-300 dark:border-violet-700"
+                  data-testid="button-detect-location"
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  {detectingLocation ? "Detecting..." : "Auto-Detect Location"}
+                </Button>
+              </div>
 
-              <FormField
-                control={form.control}
-                name="lon"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-gray-700 dark:text-gray-300">Longitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        placeholder="-74.0060"
-                        className="h-11 border-violet-200 dark:border-violet-800"
-                        {...field}
-                        data-testid="input-lon"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="lat"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 dark:text-gray-300">Latitude</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder="40.7128"
+                          className="h-11 border-violet-200 dark:border-violet-800"
+                          {...field}
+                          data-testid="input-lat"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="lon"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-700 dark:text-gray-300">Longitude</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder="-74.0060"
+                          className="h-11 border-violet-200 dark:border-violet-800"
+                          {...field}
+                          data-testid="input-lon"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <FormField

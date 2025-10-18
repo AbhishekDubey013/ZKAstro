@@ -148,6 +148,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **2025-10-18**: **AUTO-DETECTION - Timezone & Location Auto-Fill**
+  - ✅ **Automatic Timezone Detection**: System timezone auto-detected using `Intl.DateTimeFormat()`
+  - ✅ **"Auto-Detect Location" Button**: Browser geolocation API fills lat/lon automatically
+  - ✅ **Reverse Geocoding**: OpenStreetMap Nominatim API converts coordinates to place name
+  - ✅ **Pre-filled Form**: Timezone field shows "Auto-detected: [timezone]" and is pre-populated
+  - ✅ **One-Click Location**: Users can click button to auto-fill all location fields
+  - 📝 **Note**: Geolocation requires browser permission; reverse geocoding rate-limited (1 req/sec)
+
 - **2025-10-18**: **PRIVY WALLET INTEGRATION - Web3 Authentication via Privy**
   - ✅ **Installed Privy SDK**: @privy-io/react-auth package integrated
   - ✅ **PrivyProvider Configuration**: App ID cmgb15wpa00g0la0duq9rzaqw
