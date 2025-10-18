@@ -1,15 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet, Sparkles, ArrowLeft } from "lucide-react";
-import { SiGoogle } from "react-icons/si";
 import { useLocation } from "wouter";
 import { usePrivy } from "@privy-io/react-auth";
 import { useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
 
 export default function Auth() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const { login, authenticated, ready } = usePrivy();
 
   // Redirect to dashboard if already authenticated
@@ -21,10 +18,6 @@ export default function Auth() {
 
   const handlePrivyLogin = () => {
     login();
-  };
-
-  const handleGoogleLogin = () => {
-    window.location.href = "/api/login";
   };
 
   const handleBack = () => {
@@ -65,9 +58,9 @@ export default function Auth() {
         </div>
 
         {/* Auth Options */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        <div className="flex justify-center max-w-md mx-auto">
           {/* Privy Wallet */}
-          <Card className="border-violet-200 dark:border-violet-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:scale-105">
+          <Card className="w-full border-violet-200 dark:border-violet-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="text-center pb-4">
               <div className="flex justify-center mb-4">
                 <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-50 dark:from-violet-900/30 dark:to-purple-950/30">
@@ -93,36 +86,6 @@ export default function Auth() {
               </Button>
               <p className="text-xs text-gray-500 dark:text-gray-500 text-center mt-3">
                 Secure Web3 authentication via Privy
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Google Sign-In */}
-          <Card className="border-teal-200 dark:border-teal-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <CardHeader className="text-center pb-4">
-              <div className="flex justify-center mb-4">
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/30 dark:to-blue-950/30">
-                  <SiGoogle className="h-12 w-12 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-              <CardTitle className="text-xl sm:text-2xl text-gray-900 dark:text-gray-100">
-                Google Account
-              </CardTitle>
-              <CardDescription className="text-sm sm:text-base">
-                Sign in with your Google account
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={handleGoogleLogin}
-                className="w-full h-12 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold"
-                data-testid="button-google-login"
-              >
-                <SiGoogle className="h-5 w-5 mr-2" />
-                Continue with Google
-              </Button>
-              <p className="text-xs text-gray-500 dark:text-gray-500 text-center mt-3">
-                Quick and easy access
               </p>
             </CardContent>
           </Card>
