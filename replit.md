@@ -38,6 +38,16 @@ Users can ask follow-up questions about their predictions through an interactive
 
 Chat messages are stored in the database with full conversation history. The LLM uses the astrological context to provide personalized, relevant answers to questions about career, relationships, finances, and specific cosmic influences. Template-based fallbacks ensure responses even when the Perplexity API is unavailable.
 
+### Auto-Show Daily Predictions
+
+For returning users with existing natal charts, the application automatically:
+1. Detects if the user has created a chart in a previous session
+2. Checks if there's a prediction request for today's date
+3. Auto-creates today's prediction if one doesn't exist
+4. Redirects directly to the daily prediction page
+
+This seamless experience ensures users immediately see their daily cosmic guidance upon login, without needing to manually request predictions each day.
+
 ### API Structure
 
 The API provides endpoints for:
