@@ -148,6 +148,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **2025-10-18**: **ZERO-KNOWLEDGE PRIVACY - NOW FULLY ACTIVE** 🔐
+  - ✅ **Client-Side Calculations**: Birth data computed entirely in browser using astronomia library
+  - ✅ **Poseidon Hash ZK Proofs**: Cryptographically verifiable proofs generated before transmission
+  - ✅ **Server Verification**: Backend cryptographically verifies proofs before storing charts
+  - ✅ **NO RAW DATA STORED**: Database contains ONLY cryptographic commitments + calculated positions
+  - ✅ **Complete Privacy**: Birth date, time, timezone, and location NEVER leave your browser
+  - 🔒 **What's stored**: inputsHash (commitment), zkProof, zkSalt, planetary positions - that's it!
+  
 - **2025-10-18**: **AUTO-DETECTION - Timezone & Location Auto-Fill**
   - ✅ **Automatic Timezone Detection**: System timezone auto-detected using `Intl.DateTimeFormat()`
   - ✅ **"Auto-Detect Location" Button**: Browser geolocation API fills lat/lon automatically
