@@ -300,6 +300,9 @@ export type InsertPredictionAnswer = z.infer<typeof insertPredictionAnswerSchema
 export type ReputationEvent = typeof reputationEvents.$inferSelect;
 export type InsertReputationEvent = z.infer<typeof insertReputationEventSchema>;
 
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+
 export type CreateChartRequest = z.infer<typeof createChartRequestSchema>;
 export type CreateChartZKRequest = z.infer<typeof createChartZKRequestSchema>;
 export type CreatePredictionRequest = z.infer<typeof createPredictionRequestSchema>;
