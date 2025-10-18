@@ -406,6 +406,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestId = req.params.id;
       const { message } = req.body;
 
+      console.log(`📨 Chat message received for request ${requestId}:`, message);
+
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: "Message is required" });
       }
@@ -416,11 +418,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get prediction request and answers
       const request = await storage.getPredictionRequest(requestId);
       if (!request) {
+        console.error(`❌ Request not found: ${requestId}`);
         return res.status(404).json({ error: "Prediction request not found" });
       }
 
       const answers = await storage.getAnswersByRequestId(requestId);
       if (answers.length === 0) {
+        console.error(`❌ No answers found for request: ${requestId}`);
         return res.status(400).json({ error: "No predictions available yet" });
       }
 
@@ -440,6 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       // Generate AI response
+      console.log('🤖 Generating AI response...');
       const { generateChatResponse } = await import('../lib/agents/llm');
       const aiResponse = await generateChatResponse(
         message,
@@ -451,6 +456,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         conversationHistory
       );
+
+      console.log('✅ AI response generated:', aiResponse.substring(0, 100) + '...');
 
       // Save user message
       const userMessage = await storage.createChatMessage({
@@ -464,6 +471,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
+      console.log('💾 User message saved:', userMessage.id);
+
       // Save AI response
       const assistantMessage = await storage.createChatMessage({
         predictionRequestId: requestId,
@@ -476,12 +485,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
+      console.log('💾 Assistant message saved:', assistantMessage.id);
+
       res.json({
         userMessage,
         assistantMessage,
       });
     } catch (error: any) {
-      console.error("Error sending chat message:", error);
+      console.error("❌ Error sending chat message:", error);
       res.status(500).json({ error: error.message || "Failed to send message" });
     }
   });
