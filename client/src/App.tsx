@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { NavHeader } from "@/components/nav-header";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
+import Auth from "@/pages/auth";
 import Dashboard from "@/pages/dashboard";
 import ChartDetail from "@/pages/chart-detail";
 import RequestDetail from "@/pages/request-detail";
@@ -21,6 +22,7 @@ function Router() {
       {isLoading || !isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
+          <Route path="/auth" component={Auth} />
           <Route path="/agents" component={Agents} />
           <Route component={NotFound} />
         </>

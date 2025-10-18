@@ -31,6 +31,7 @@ export interface IStorage {
 
   // Charts
   getChart(id: string): Promise<Chart | undefined>;
+  getChartsByUserId(userId: string): Promise<Chart[]>;
   createChart(chart: InsertChart): Promise<Chart>;
 
   // Agents
@@ -91,6 +92,10 @@ export class DatabaseStorage implements IStorage {
   async getChart(id: string): Promise<Chart | undefined> {
     const [chart] = await db.select().from(charts).where(eq(charts.id, id));
     return chart || undefined;
+  }
+
+  async getChartsByUserId(userId: string): Promise<Chart[]> {
+    return await db.select().from(charts).where(eq(charts.userId, userId)).orderBy(desc(charts.createdAt));
   }
 
   async createChart(insertChart: InsertChart): Promise<Chart> {
