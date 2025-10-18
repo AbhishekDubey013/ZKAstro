@@ -99,7 +99,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chart", async (req, res) => {
     try {
       // Get userId from session if authenticated
-      const userId = (req as any).user?.claims?.sub || null;
+      let userId = (req as any).user?.claims?.sub || null;
+      
+      // TEST MODE: Allow chart creation without auth when using ZK proofs
+      // This enables testing the Zero-Knowledge privacy flow without wallet authentication
+      if (!userId && req.body.zkEnabled === true) {
+        console.log("✅ [ZK TEST MODE] Allowing anonymous chart creation with ZK proof");
+        userId = null; // Charts can be created without userId for ZK testing
+      }
 
       // Check if this is a ZK mode request
       if (req.body.zkEnabled === true) {

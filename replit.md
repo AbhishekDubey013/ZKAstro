@@ -2,7 +2,7 @@
 
 ## Overview
 
-Cosmic Predictions is an AI-powered Western astrology platform that generates personalized daily predictions through competing AI agents. Users create natal charts based on their birth data, request daily predictions, and vote on which agent provides the most accurate guidance. The platform uses Equal House system calculations and timezone-aware astronomical computations to generate authentic astrological insights.
+Cosmic Predictions is an AI-powered Western astrology platform that generates personalized daily predictions. Users create natal charts, receive predictions from competing AI agents, and vote on the most accurate guidance. The platform utilizes Equal House system calculations and timezone-aware astronomical computations to deliver authentic astrological insights. A core focus is user privacy through a zero-knowledge proof system, ensuring sensitive birth data never leaves the user's browser. The project aims to provide a unique and engaging experience for astrology enthusiasts by leveraging AI and a gamified reputation system for agents.
 
 ## User Preferences
 
@@ -12,250 +12,43 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-**Framework & Routing**
-- React with TypeScript for type-safe component development
-- Wouter for lightweight client-side routing (replacing Next.js App Router from original design docs)
-- TanStack Query for server state management and caching
-
-**UI Component System**
-- Tailwind CSS with custom design tokens for cosmic-themed styling
-- shadcn/ui components (Radix UI primitives) for accessible, composable UI elements
-- Custom theme system supporting dark/light modes with CSS variables
-- Design follows Material Design principles with celestial aesthetic accents
-- Typography hierarchy using Inter (UI), JetBrains Mono (data), and Cormorant Garamond (accent fonts)
-
-**State Management Pattern**
-- Server state via TanStack Query with optimistic updates
-- Local UI state via React hooks (useState, useContext)
-- Theme persistence in localStorage
-- No global state management library - relies on React Context and Query caching
+The frontend is built with React and TypeScript, using Wouter for routing and TanStack Query for server state management. UI components are styled with Tailwind CSS, custom design tokens, and shadcn/ui components, adhering to Material Design principles with a celestial aesthetic. The design includes a custom theme system supporting dark/light modes and a specific typography hierarchy.
 
 ### Backend Architecture
 
-**Server Framework**
-- Express.js with TypeScript for API routes
-- Vite development server integration for HMR in development
-- RESTful API design with JSON responses
+The backend uses Express.js with TypeScript, providing a RESTful API. The astrological calculation engine leverages the `astronomia` library for planetary positions and `luxon` for timezone handling, ensuring high precision and reliability.
 
-**Astrological Calculation Engine**
-- astronomia library (VSOP87 algorithm) for planetary position calculations
-- Custom Equal House system implementation
-- Luxon for timezone-aware datetime handling
-- Calculations return positions in centi-degrees (1/100th degree precision)
-- Fallback ephemeris data structure designed for reliability when astronomia unavailable
+The platform features two competing AI agents, @auriga and @nova, each with distinct prediction methodologies (aggressive vs. conservative). Agent behavior is controlled by an aggressiveness parameter in the scoring algorithm. Perplexity API is used for natural language summaries, with template-based fallbacks. A reputation system tracks agent performance based on user votes.
 
-**AI Agent System**
-- Two competing agents with different prediction methodologies:
-  - @auriga: Aggressive transit scoring (optimistic, growth-oriented)
-  - @nova: Conservative analysis (balanced, practical)
-- Agent behavior controlled by aggressiveness parameter in scoring algorithm
-- Perplexity API integration for polished natural language summaries
-- Template-based fallback when API unavailable
-- Reputation system tracks agent performance via user votes
-
-**Scoring Algorithm**
-- Transit-to-natal aspect calculations (conjunction, opposition, square, trine, sextile)
-- Benefic/malefic planet considerations
-- Lunar phase integration
-- Customizable weighting based on agent personality
+The scoring algorithm calculates transit-to-natal aspects, considers benefic/malefic planets, integrates lunar phases, and allows for customizable weighting.
 
 ### Data Storage
 
-**Database: PostgreSQL (Neon)**
-- Drizzle ORM for type-safe database operations
-- Schema-first approach with Zod validation
+PostgreSQL (Neon) is the primary database, accessed via Drizzle ORM for type-safe operations. Key data models include `users`, `charts`, `agents`, `predictionRequests`, `predictionAnswers`, and `reputationEvents`.
 
-**Core Data Models**
-- `users`: User accounts with reputation tracking
-- `charts`: Natal chart storage with privacy-hashed inputs and coarsened planetary positions
-- `agents`: AI agent profiles with reputation scores
-- `predictionRequests`: Daily prediction requests linking users to charts
-- `predictionAnswers`: Agent-generated predictions with scores and summaries
-- `reputationEvents`: Audit trail for reputation changes
-
-**Privacy Design - Zero-Knowledge Proof System**
-- **Poseidon Hash (ZK-friendly)**: Uses BN254 elliptic curve field arithmetic for cryptographic soundness
-- **Client-Side Proof Generation**: Birth data never leaves browser - positions calculated locally
-- **Challenge-Response Protocol**: Implements Fiat-Shamir transformation for non-interactive ZK proofs
-- **Server Verification**: Cryptographically verifies proof before accepting chart (returns 400 if fails)
-- **Commitment Scheme**: C = Poseidon(DOB|TOB|TZ|lat|lon + nonce)
-- **Proof Construction**: Proof = Poseidon(commitment | nonce | challenge), where challenge = Poseidon(commitment | positions)
-- **Database Storage**: Only stores commitment (inputs_hash), proof (zk_proof), and nonce (zk_salt) - never raw birth data
+A critical privacy feature is the Zero-Knowledge Proof (ZKP) system. It uses Poseidon hash (BN254 elliptic curve) for client-side proof generation, ensuring birth data never leaves the browser. Only cryptographic commitments, proofs, and nonces are stored in the database, along with coarsened planetary positions, not raw birth data. The server cryptographically verifies these proofs.
 
 ### API Structure
 
-**Chart Management**
-- `POST /api/chart`: Create natal chart from birth data (DOB, TOB, location, timezone)
-- `GET /api/chart/:id`: Retrieve chart details
-
-**Prediction Flow**
-- `POST /api/prediction`: Request daily prediction for specific date
-- `GET /api/prediction/:id`: Get prediction with competing agent answers
-- `POST /api/prediction/:id/select`: Vote for preferred agent prediction
-
-**Agent Performance & Leaderboard**
-- `GET /api/agents`: List all agents with reputation scores
-- `GET /api/agents/stats`: Get comprehensive agent performance metrics (predictions, win rate, avg scores)
-
-**Request/Response Patterns**
-- Zod schemas for request validation
-- Consistent error handling with HTTP status codes
-- JSON responses with typed data structures
+The API provides endpoints for:
+- **Chart Management**: Creating and retrieving natal charts.
+- **Prediction Flow**: Requesting daily predictions, retrieving agent answers, and voting for preferred predictions.
+- **Agent Performance & Leaderboard**: Listing agents with reputation scores and fetching comprehensive performance metrics.
+API requests and responses use Zod schemas for validation and consistent error handling.
 
 ## External Dependencies
 
 ### Third-Party Services
 
-**Perplexity AI (Optional)**
-- Purpose: Natural language generation for prediction summaries
-- Integration: OpenAI-compatible Chat Completions API
-- Fallback: Template-based text generation when API key not configured
-- Environment: `PERPLEXITY_API_KEY`
-
-**Neon PostgreSQL**
-- Purpose: Primary database (serverless Postgres)
-- Integration: Via `@neondatabase/serverless` with WebSocket support
-- Configuration: `DATABASE_URL` environment variable
-- Local development: Designed with Docker fallback support
+- **Perplexity AI**: Used for natural language generation of prediction summaries via its OpenAI-compatible Chat Completions API. A template-based fallback is in place if the API is unavailable.
+- **Neon PostgreSQL**: The serverless PostgreSQL database.
 
 ### Key Libraries
 
-**Astronomical Calculations**
-- `astronomia`: VSOP87 planetary position calculations
-- `luxon`: Timezone-aware datetime operations and conversions
-
-**Database & ORM**
-- `drizzle-orm`: Type-safe ORM with schema migrations
-- `drizzle-kit`: Database schema management and migrations
-- `@neondatabase/serverless`: Neon database driver with WebSocket support
-
-**UI & Styling**
-- `@radix-ui/*`: Headless UI component primitives (30+ component packages)
-- `tailwindcss`: Utility-first CSS framework
-- `class-variance-authority`: Component variant management
-- `cmdk`: Command menu component
-
-**Forms & Validation**
-- `react-hook-form`: Form state management
-- `zod`: Schema validation for forms and API contracts
-- `@hookform/resolvers`: React Hook Form + Zod integration
-
-**Development Tools**
-- `vite`: Build tool and dev server
-- `tsx`: TypeScript execution for development
-- `esbuild`: Production build bundling
-- `@replit/vite-plugin-*`: Replit-specific development enhancements
-
-## Recent Changes
-
-- **2025-10-18**: **ZERO-KNOWLEDGE PRIVACY - NOW FULLY ACTIVE** 🔐
-  - ✅ **Client-Side Calculations**: Birth data computed entirely in browser using astronomia library
-  - ✅ **Poseidon Hash ZK Proofs**: Cryptographically verifiable proofs generated before transmission
-  - ✅ **Server Verification**: Backend cryptographically verifies proofs before storing charts
-  - ✅ **NO RAW DATA STORED**: Database contains ONLY cryptographic commitments + calculated positions
-  - ✅ **Complete Privacy**: Birth date, time, timezone, and location NEVER leave your browser
-  - 🔒 **What's stored**: inputsHash (commitment), zkProof, zkSalt, planetary positions - that's it!
-  
-- **2025-10-18**: **AUTO-DETECTION - Timezone & Location Auto-Fill**
-  - ✅ **Automatic Timezone Detection**: System timezone auto-detected using `Intl.DateTimeFormat()`
-  - ✅ **"Auto-Detect Location" Button**: Browser geolocation API fills lat/lon automatically
-  - ✅ **Reverse Geocoding**: OpenStreetMap Nominatim API converts coordinates to place name
-  - ✅ **Pre-filled Form**: Timezone field shows "Auto-detected: [timezone]" and is pre-populated
-  - ✅ **One-Click Location**: Users can click button to auto-fill all location fields
-  - 📝 **Note**: Geolocation requires browser permission; reverse geocoding rate-limited (1 req/sec)
-
-- **2025-10-18**: **PRIVY WALLET INTEGRATION - Web3 Authentication via Privy**
-  - ✅ **Installed Privy SDK**: @privy-io/react-auth package integrated
-  - ✅ **PrivyProvider Configuration**: App ID cmgb15wpa00g0la0duq9rzaqw
-    - Configured for dark theme with violet accent (#8b5cf6)
-    - Supports wallet, Google, GitHub, and email login methods
-  - ✅ **Updated Auth Page**: Replaced MetaMask with Privy Wallet Connect
-    - "Wallet Connect" card triggers Privy modal (supports 200+ wallets)
-    - Google Sign-in still available via Replit Auth
-    - Violet gradient styling for Privy button
-  - ✅ **Unified useAuth Hook**: Combines Privy and Replit Auth
-    - Detects authentication from either Privy wallet or Replit session
-    - Maps Privy user to standard user format
-    - Returns isPrivyAuth flag for conditional logout
-  - ✅ **Smart Logout**: Dashboard detects auth method
-    - Privy users: Call privyLogout() and redirect to home
-    - Replit users: Redirect to /api/logout
-  - ✅ **Chart-User Association**: All charts auto-linked to authenticated users
-    - Works seamlessly with both Privy and Replit Auth
-    - Charts created by logged-in users associated via userId
-    - Backwards compatible: userId nullable for legacy charts
-  - 📝 **Note**: Privy iframe may fail to load in development - this is expected
-
-- **2025-10-18**: **NEW USER FLOW - Simplified Authentication & Smart Dashboard**
-  - ✅ **Redesigned Landing Page**: Single "Know Your Day" CTA button with vibrant cosmic theme
-    - Removed complex chart creation form from landing
-    - Streamlined user journey: Landing → Auth → Dashboard
-    - Bright animated orbs, sparkles, and gradient text
-    - Mobile-responsive with touch-friendly 44px+ targets
-  - ✅ **New Auth Page** (`/auth`): Two login options
-    - Privy Wallet Connect (Web3) - Supports 200+ wallets
-    - Google Sign-in via Replit Auth (GitHub, Apple, email also available)
-    - Glass-morphism cards with hover effects
-  - ✅ **Smart Dashboard**: Contextual UI based on user data
-    - **New Users (no charts)**: Shows chart creation form inline
-    - **Returning Users**: Displays charts list with quick actions
-    - User profile with avatar, reputation, and logout
-    - GET /api/charts endpoint to fetch user's charts
-  - ✅ **Reusable ChartCreationForm Component**: Extracted form into standalone component
-    - Used in dashboard for new users
-    - Integrated with TanStack Query for state management
-    - Form validation with Zod + react-hook-form
-  - 🧪 **Tested**: Landing → Auth page flow verified (OAuth requires user interaction)
-
-- **2025-10-17**: **Bright & Vibrant Cosmic Landing Page - Mobile Optimized**
-  - ✅ **Vibrant Color Palette**: 
-    - Light, uplifting gradients: violet-50 → blue-50 → teal-50 backgrounds
-    - Bright animated orbs (violet-400, teal-400, blue-400) with glow effects
-    - Yellow sun/moon icons with pulsing animations
-    - Colorful feature badges with gradient backgrounds
-  - ✅ **Mobile-First Responsive Design**:
-    - Touch-friendly inputs (44px+ touch targets on all devices)
-    - Responsive text sizing (4xl → 5xl → 6xl → 7xl)
-    - Adaptive spacing (py-8 sm:py-12 md:py-16 lg:py-20)
-    - Stacking layouts for mobile (grid-cols-1 sm:grid-cols-2/3)
-    - Flexible hero icons (flex-col sm:flex-row)
-  - ✅ **Visual Enhancements**:
-    - Animated gradient title with smooth color transitions
-    - Floating stars/sparkles background effects
-    - Vibrant info cards with emoji icons (🔮 🔐 ✨)
-    - Glass-morphism card with backdrop blur
-    - Gradient buttons (violet-600 → teal-600)
-  - ✅ **Agent Performance Showcase Page**:
-    - New API endpoint: `GET /api/agents/stats` with comprehensive metrics
-    - Performance metrics: Win rate, total predictions, average day scores
-    - Gradient backgrounds with celestial purple/teal theme
-    - Visual progress bars for all metrics
-    - Top agent rankings with special badges (🏆 gold, ⚡ silver)
-    - Stats overview dashboard cards
-  - 🐛 **Fixed**: PostgreSQL ROUND function error (cast to NUMERIC before rounding)
-  - ✅ **End-to-end tested**: Full flow verified - landing → chart creation → predictions → agent selection → leaderboard update
-
-- **2025-10-17**: **MAJOR UPGRADE - Real ZK-SNARK Implementation with Poseidon Hash**
-  - ✅ **Poseidon ZK Proof System**: Replaced SHA-256 commitment with ZK-friendly Poseidon hash (BN254 field)
-  - ✅ **Cryptographic Verification**: Server now cryptographically verifies ZK proofs before accepting charts
-  - ✅ **Challenge-Response Protocol**: Implements Fiat-Shamir transformation for ZK soundness
-  - ✅ **Buffer Polyfill**: Fixed browser compatibility for circomlibjs (added to client/src/main.tsx)
-  - ✅ **Libraries**: snarkjs, circomlibjs, circomlib installed for ZK cryptography
-  - ✅ **End-to-end tested**: Client Poseidon proof generation → server verification → chart creation → predictions
-  - 📊 **Database Fields**: zk_proof now stores hexadecimal Poseidon hash outputs (not SHA-256)
-  
-- **2025-10-17**: Full MVP implementation completed and tested
-  - ✅ Complete database schema with PostgreSQL/Drizzle ORM (charts, requests, answers, agents, reputation)
-  - ✅ Astrology calculation engine using astronomia library (Equal House, timezone-aware)
-  - ✅ Two competing AI agents (@auriga, @nova) with Perplexity API integration
-  - ✅ Full frontend UI: chart creation, prediction requests, agent comparison, leaderboard
-  - ✅ End-to-end testing passed: chart → prediction → voting → reputation updates
-  - 🐛 Fixed: astronomia API usage, React Link nesting, mutation JSON parsing, GET /api/chart/:id route
-  - ⚠️ Note: Perplexity API shows "Bad Request" errors, graceful fallback to templates working
-
-## Known Issues
-
-- Perplexity API integration returns "Bad Request" errors (likely API key configuration issue)
-  - System gracefully falls back to template-based predictions
-  - All functionality works as intended with fallback mechanism
-  - To enable AI-polished summaries: verify PERPLEXITY_API_KEY is valid
+- **Astronomical Calculations**: `astronomia` (VSOP87 planetary calculations) and `luxon` (timezone-aware datetime).
+- **Database & ORM**: `drizzle-orm`, `drizzle-kit`, and `@neondatabase/serverless`.
+- **UI & Styling**: `@radix-ui/*`, `tailwindcss`, `class-variance-authority`, `cmdk`.
+- **Forms & Validation**: `react-hook-form`, `zod`, `@hookform/resolvers`.
+- **Development Tools**: `vite`, `tsx`, `esbuild`, `@replit/vite-plugin-*`.
+- **ZK Cryptography**: `snarkjs`, `circomlibjs`, `circomlib`.
+- **Authentication**: `@privy-io/react-auth` for Web3 authentication.
