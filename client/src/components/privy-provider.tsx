@@ -15,9 +15,6 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           accentColor: '#8b5cf6',
           logo: undefined,
         },
-        embeddedWallets: {
-          createOnLogin: 'users-without-wallets',
-        },
       }}
     >
       {children}
