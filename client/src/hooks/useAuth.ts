@@ -19,7 +19,7 @@ export function useAuth() {
     email: privyUser.email?.address,
     firstName: privyUser.google?.name || privyUser.wallet?.address?.slice(0, 6),
     lastName: '',
-    profileImageUrl: privyUser.google?.pictureUrl,
+    profileImageUrl: undefined,
   } : null);
 
   return {

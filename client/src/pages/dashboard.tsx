@@ -5,10 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LogOut, Plus, Star, User, Calendar, Clock, MapPin } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
+import { usePrivy } from "@privy-io/react-auth";
 import ChartCreationForm from "@/components/chart-creation-form";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isPrivyAuth } = useAuth();
+  const { logout: privyLogout } = usePrivy();
   const [, setLocation] = useLocation();
 
   // Fetch user's charts
@@ -18,7 +20,12 @@ export default function Dashboard() {
   });
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    if (isPrivyAuth) {
+      privyLogout();
+      setLocation("/");
+    } else {
+      window.location.href = "/api/logout";
+    }
   };
 
   const getInitials = () => {
