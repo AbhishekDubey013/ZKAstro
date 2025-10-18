@@ -148,6 +148,32 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **2025-10-18**: **NEW USER FLOW - Simplified Authentication & Smart Dashboard**
+  - ✅ **Redesigned Landing Page**: Single "Know Your Day" CTA button with vibrant cosmic theme
+    - Removed complex chart creation form from landing
+    - Streamlined user journey: Landing → Auth → Dashboard
+    - Bright animated orbs, sparkles, and gradient text
+    - Mobile-responsive with touch-friendly 44px+ targets
+  - ✅ **New Auth Page** (`/auth`): Two login options
+    - MetaMask wallet authentication (Web3)
+    - Google Sign-in via Replit Auth (GitHub, Apple, email also available)
+    - Glass-morphism cards with hover effects
+    - Backend wallet auth endpoint: POST /api/auth/wallet
+  - ✅ **Smart Dashboard**: Contextual UI based on user data
+    - **New Users (no charts)**: Shows chart creation form inline
+    - **Returning Users**: Displays charts list with quick actions
+    - User profile with avatar, reputation, and logout
+    - GET /api/charts endpoint to fetch user's charts
+  - ✅ **Chart-User Association**: All charts now linked to authenticated users
+    - Charts created by logged-in users automatically associated via userId
+    - Database query: getChartsByUserId() for personalized dashboard
+    - Backwards compatible: userId is nullable for legacy charts
+  - ✅ **Reusable ChartCreationForm Component**: Extracted form into standalone component
+    - Used in dashboard for new users
+    - Integrated with TanStack Query for state management
+    - Form validation with Zod + react-hook-form
+  - 🧪 **Tested**: Landing → Auth page flow verified (OAuth requires user interaction)
+
 - **2025-10-17**: **Bright & Vibrant Cosmic Landing Page - Mobile Optimized**
   - ✅ **Vibrant Color Palette**: 
     - Light, uplifting gradients: violet-50 → blue-50 → teal-50 backgrounds
