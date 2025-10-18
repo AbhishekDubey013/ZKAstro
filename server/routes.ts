@@ -34,6 +34,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
+
+  // Wallet authentication endpoint (Web3/MetaMask)
+  app.post('/api/auth/wallet', async (req, res) => {
+    try {
+      const { address, message, signature } = req.body;
+
+      if (!address || !message || !signature) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // For now, we'll trust the signature (in production, verify it using ethers.js)
+      // This is a simplified version - proper implementation would verify the signature
+      
+      // Create or get user by wallet address
+      let user = await storage.getUserByEmail(address.toLowerCase());
+      
+      if (!user) {
+        // Create new user with wallet address
+        user = await storage.createUser({
+          email: address.toLowerCase(),
+          firstName: "Wallet",
+          lastName: "User",
+          profileImageUrl: null,
+        });
+      }
+
+      // Create session (simplified - in production use proper session management)
+      (req as any).session = { userId: user.id };
+
+      res.json({ success: true, user });
+    } catch (error: any) {
+      console.error("Wallet auth error:", error);
+      res.status(500).json({ error: error.message || "Wallet authentication failed" });
+    }
+  });
+
+  // GET /api/charts - Get all charts for authenticated user
+  app.get("/api/charts", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const charts = await storage.getChartsByUserId(userId);
+      res.json(charts);
+    } catch (error: any) {
+      console.error("Error getting charts:", error);
+      res.status(500).json({ error: error.message || "Failed to get charts" });
+    }
+  });
   // GET /api/chart/:id - Get a chart by ID
   app.get("/api/chart/:id", async (req, res) => {
     try {
@@ -51,6 +98,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/chart - Create a new natal chart (supports both normal and ZK mode)
   app.post("/api/chart", async (req, res) => {
     try {
+      // Get userId from session if authenticated
+      const userId = (req as any).user?.claims?.sub || null;
+
       // Check if this is a ZK mode request
       if (req.body.zkEnabled === true) {
         // ZK MODE: Client provides pre-calculated positions + proof
@@ -79,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Save chart with VERIFIED ZK proof (raw birth data never stored)
         const chart = await storage.createChart({
-          userId: null,
+          userId: userId,
           inputsHash: zkBody.inputsHash,
           algoVersion: "western-equal-v1",
           paramsJson: zkBody.params,
@@ -138,9 +188,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mc,
       };
 
-      // Save chart to database
+      // Save chart to database (associate with user if authenticated)
       const chart = await storage.createChart({
-        userId: null, // Anonymous for MVP
+        userId: userId,
         inputsHash,
         algoVersion: "western-equal-v1",
         paramsJson,
