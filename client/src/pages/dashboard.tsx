@@ -8,6 +8,7 @@ import { useLocation } from "wouter";
 import { usePrivy } from "@privy-io/react-auth";
 import type { Chart } from "@shared/schema";
 import ChartCreationForm from "@/components/chart-creation-form";
+import { useEffect } from "react";
 
 export default function Dashboard() {
   const { user, isPrivyAuth } = useAuth();
@@ -41,6 +42,26 @@ export default function Dashboard() {
   };
 
   const hasCharts = charts && charts.length > 0;
+
+  // Auto-redirect to today's prediction if user has charts
+  useEffect(() => {
+    if (hasCharts && charts && charts.length > 0) {
+      const mostRecentChart = charts[0]; // Charts are already sorted by creation date
+      
+      // Fetch or create today's prediction
+      fetch(`/api/chart/${mostRecentChart.id}/today-prediction`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.requestId) {
+            setLocation(`/request/${data.requestId}`);
+          }
+        })
+        .catch(err => {
+          console.error("Error auto-loading today's prediction:", err);
+          // Don't redirect on error - let user stay on dashboard
+        });
+    }
+  }, [hasCharts, charts, setLocation]);
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-gradient-to-br from-violet-50 via-blue-50 to-teal-50 dark:from-violet-950/20 dark:via-blue-950/20 dark:to-teal-950/20">

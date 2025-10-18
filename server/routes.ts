@@ -220,6 +220,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/chart/:chartId/today-prediction - Get or create today's prediction
+  app.get("/api/chart/:chartId/today-prediction", async (req, res) => {
+    try {
+      const { chartId } = req.params;
+
+      // Get the chart
+      const chart = await storage.getChart(chartId);
+      if (!chart) {
+        return res.status(404).json({ error: "Chart not found" });
+      }
+
+      // Get today's date (UTC, start of day)
+      const today = DateTime.now().toUTC().startOf("day").toJSDate();
+
+      // Check if there's already a prediction for today
+      let request = await storage.getPredictionRequestByChartAndDate(chartId, today);
+
+      // If no prediction exists for today, create one
+      if (!request) {
+        request = await storage.createPredictionRequest({
+          userId: null,
+          chartId: chartId,
+          question: "What does today hold for me?",
+          targetDate: today,
+        });
+
+        // Generate predictions asynchronously
+        generatePredictionsAsync(request.id, chart, today);
+      }
+
+      res.json({ requestId: request.id, created: !request });
+    } catch (error: any) {
+      console.error("Error getting/creating today's prediction:", error);
+      res.status(500).json({ error: error.message || "Failed to get today's prediction" });
+    }
+  });
+
   // POST /api/request - Create a prediction request
   app.post("/api/request", async (req, res) => {
     try {

@@ -23,7 +23,7 @@ import {
   type InsertChatMessage,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -48,6 +48,7 @@ export interface IStorage {
 
   // Prediction Requests
   getPredictionRequest(id: string): Promise<PredictionRequest | undefined>;
+  getPredictionRequestByChartAndDate(chartId: string, targetDate: Date): Promise<PredictionRequest | undefined>;
   createPredictionRequest(request: InsertPredictionRequest): Promise<PredictionRequest>;
   updatePredictionRequestStatus(id: string, status: string, selectedAnswerId?: string): Promise<void>;
 
@@ -176,6 +177,20 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(predictionRequests)
       .where(eq(predictionRequests.id, id));
+    return request || undefined;
+  }
+
+  async getPredictionRequestByChartAndDate(chartId: string, targetDate: Date): Promise<PredictionRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(predictionRequests)
+      .where(
+        and(
+          eq(predictionRequests.chartId, chartId),
+          eq(predictionRequests.targetDate, targetDate)
+        )
+      )
+      .limit(1);
     return request || undefined;
   }
 
