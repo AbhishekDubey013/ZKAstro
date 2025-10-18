@@ -343,6 +343,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/request/:id/chat - Get chat messages for a prediction
+  app.get("/api/request/:id/chat", async (req, res) => {
+    try {
+      const requestId = req.params.id;
+      
+      // Verify request exists
+      const request = await storage.getPredictionRequest(requestId);
+      if (!request) {
+        return res.status(404).json({ error: "Prediction request not found" });
+      }
+
+      // Get chat messages
+      const messages = await storage.getChatMessages(requestId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error getting chat messages:", error);
+      res.status(500).json({ error: error.message || "Failed to get chat messages" });
+    }
+  });
+
+  // POST /api/request/:id/chat - Send a chat message
+  app.post("/api/request/:id/chat", async (req, res) => {
+    try {
+      const requestId = req.params.id;
+      const { message } = req.body;
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Get userId from session if authenticated
+      let userId = (req as any).user?.claims?.sub || null;
+
+      // Get prediction request and answers
+      const request = await storage.getPredictionRequest(requestId);
+      if (!request) {
+        return res.status(404).json({ error: "Prediction request not found" });
+      }
+
+      const answers = await storage.getAnswersByRequestId(requestId);
+      if (answers.length === 0) {
+        return res.status(400).json({ error: "No predictions available yet" });
+      }
+
+      // Use the first answer's data for context (or selected answer if available)
+      const primaryAnswer = request.selectedAnswerId 
+        ? answers.find(a => a.id === request.selectedAnswerId) || answers[0]
+        : answers[0];
+
+      // Parse factors
+      const transitFactors = primaryAnswer.factors.split('\n').filter(f => f.trim());
+
+      // Get conversation history
+      const existingMessages = await storage.getChatMessages(requestId);
+      const conversationHistory = existingMessages.map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      }));
+
+      // Generate AI response
+      const { generateChatResponse } = await import('../lib/agents/llm');
+      const aiResponse = await generateChatResponse(
+        message,
+        {
+          dayScore: primaryAnswer.dayScore,
+          transitFactors,
+          predictionSummary: primaryAnswer.summary,
+          targetDate: request.targetDate.toISOString(),
+        },
+        conversationHistory
+      );
+
+      // Save user message
+      const userMessage = await storage.createChatMessage({
+        predictionRequestId: requestId,
+        userId,
+        role: 'user',
+        content: message,
+        context: {
+          dayScore: primaryAnswer.dayScore,
+          transitFactors: transitFactors.slice(0, 3),
+        },
+      });
+
+      // Save AI response
+      const assistantMessage = await storage.createChatMessage({
+        predictionRequestId: requestId,
+        userId: null,
+        role: 'assistant',
+        content: aiResponse,
+        context: {
+          dayScore: primaryAnswer.dayScore,
+          transitFactors: transitFactors.slice(0, 3),
+        },
+      });
+
+      res.json({
+        userMessage,
+        assistantMessage,
+      });
+    } catch (error: any) {
+      console.error("Error sending chat message:", error);
+      res.status(500).json({ error: error.message || "Failed to send message" });
+    }
+  });
+
   // GET /api/agents - List all agents
   app.get("/api/agents", async (req, res) => {
     try {

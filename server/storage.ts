@@ -5,6 +5,7 @@ import {
   predictionRequests,
   predictionAnswers,
   reputationEvents,
+  chatMessages,
   type User,
   type InsertUser,
   type UpsertUser,
@@ -18,6 +19,8 @@ import {
   type InsertPredictionAnswer,
   type ReputationEvent,
   type InsertReputationEvent,
+  type ChatMessage,
+  type InsertChatMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -54,6 +57,10 @@ export interface IStorage {
 
   // Reputation Events
   createReputationEvent(event: InsertReputationEvent): Promise<ReputationEvent>;
+
+  // Chat Messages
+  getChatMessages(predictionRequestId: string): Promise<ChatMessage[]>;
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -214,6 +221,23 @@ export class DatabaseStorage implements IStorage {
       .values(insertEvent)
       .returning();
     return event;
+  }
+
+  // Chat Messages
+  async getChatMessages(predictionRequestId: string): Promise<ChatMessage[]> {
+    return await db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.predictionRequestId, predictionRequestId))
+      .orderBy(chatMessages.createdAt);
+  }
+
+  async createChatMessage(insertMessage: InsertChatMessage): Promise<ChatMessage> {
+    const [message] = await db
+      .insert(chatMessages)
+      .values(insertMessage)
+      .returning();
+    return message;
   }
 }
 
