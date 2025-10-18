@@ -148,6 +148,28 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **2025-10-18**: **PRIVY WALLET INTEGRATION - Web3 Authentication via Privy**
+  - ✅ **Installed Privy SDK**: @privy-io/react-auth package integrated
+  - ✅ **PrivyProvider Configuration**: App ID cmgb15wpa00g0la0duq9rzaqw
+    - Configured for dark theme with violet accent (#8b5cf6)
+    - Supports wallet, Google, GitHub, and email login methods
+  - ✅ **Updated Auth Page**: Replaced MetaMask with Privy Wallet Connect
+    - "Wallet Connect" card triggers Privy modal (supports 200+ wallets)
+    - Google Sign-in still available via Replit Auth
+    - Violet gradient styling for Privy button
+  - ✅ **Unified useAuth Hook**: Combines Privy and Replit Auth
+    - Detects authentication from either Privy wallet or Replit session
+    - Maps Privy user to standard user format
+    - Returns isPrivyAuth flag for conditional logout
+  - ✅ **Smart Logout**: Dashboard detects auth method
+    - Privy users: Call privyLogout() and redirect to home
+    - Replit users: Redirect to /api/logout
+  - ✅ **Chart-User Association**: All charts auto-linked to authenticated users
+    - Works seamlessly with both Privy and Replit Auth
+    - Charts created by logged-in users associated via userId
+    - Backwards compatible: userId nullable for legacy charts
+  - 📝 **Note**: Privy iframe may fail to load in development - this is expected
+
 - **2025-10-18**: **NEW USER FLOW - Simplified Authentication & Smart Dashboard**
   - ✅ **Redesigned Landing Page**: Single "Know Your Day" CTA button with vibrant cosmic theme
     - Removed complex chart creation form from landing
@@ -155,19 +177,14 @@ Preferred communication style: Simple, everyday language.
     - Bright animated orbs, sparkles, and gradient text
     - Mobile-responsive with touch-friendly 44px+ targets
   - ✅ **New Auth Page** (`/auth`): Two login options
-    - MetaMask wallet authentication (Web3)
+    - Privy Wallet Connect (Web3) - Supports 200+ wallets
     - Google Sign-in via Replit Auth (GitHub, Apple, email also available)
     - Glass-morphism cards with hover effects
-    - Backend wallet auth endpoint: POST /api/auth/wallet
   - ✅ **Smart Dashboard**: Contextual UI based on user data
     - **New Users (no charts)**: Shows chart creation form inline
     - **Returning Users**: Displays charts list with quick actions
     - User profile with avatar, reputation, and logout
     - GET /api/charts endpoint to fetch user's charts
-  - ✅ **Chart-User Association**: All charts now linked to authenticated users
-    - Charts created by logged-in users automatically associated via userId
-    - Database query: getChartsByUserId() for personalized dashboard
-    - Backwards compatible: userId is nullable for legacy charts
   - ✅ **Reusable ChartCreationForm Component**: Extracted form into standalone component
     - Used in dashboard for new users
     - Integrated with TanStack Query for state management
