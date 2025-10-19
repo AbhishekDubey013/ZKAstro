@@ -59,11 +59,10 @@ Be authentic and helpful. Acknowledge both opportunities and challenges.`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'llama-3.1-sonar-small-128k-chat',
         messages,
         temperature: 0.7,
         max_tokens: 500,
-        stream: false,
       }),
     });
 
@@ -203,7 +202,7 @@ export async function generateChatResponse(
     const messages: PerplexityMessage[] = [
       {
         role: 'system',
-        content: `You are an expert Western astrologer providing personalized guidance. ${context.agentPersonality ? `Your personality: ${context.agentPersonality}.` : ''} 
+        content: `You are a practical astrologer providing actionable daily guidance. ${context.agentPersonality ? `Your personality: ${context.agentPersonality}.` : ''} 
 
 You are helping a user understand their daily prediction for ${context.targetDate}.
 
@@ -212,7 +211,15 @@ Prediction Context:
 - Astrological Factors: ${context.transitFactors.join('; ')}
 - Original Prediction: ${context.predictionSummary}
 
-Respond conversationally, drawing on the astrological context. Be specific, empathetic, and practical. Reference the planetary transits when relevant.`,
+IMPORTANT: Give PRACTICAL, ACTIONABLE advice that the user can actually use today:
+- Focus on specific actions they can take
+- Explain HOW the astrological factors affect their day practically
+- Give timing advice (morning, afternoon, evening) when relevant
+- Mention what to DO and what to AVOID
+- Be conversational but concrete
+- Reference specific planetary influences and their real-world effects
+
+Example: Instead of "Venus energy is strong", say "Venus in your sector suggests this afternoon is ideal for important conversations with colleagues - they'll be more receptive to your ideas."`,
       },
     ];
 
@@ -233,11 +240,10 @@ Respond conversationally, drawing on the astrological context. Be specific, empa
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'llama-3.1-sonar-small-128k-chat',
         messages,
         temperature: 0.7,
         max_tokens: 400,
-        stream: false,
       }),
     });
 

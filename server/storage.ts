@@ -35,6 +35,7 @@ export interface IStorage {
   // Charts
   getChart(id: string): Promise<Chart | undefined>;
   getChartsByUserId(userId: string): Promise<Chart[]>;
+  getAllCharts(): Promise<Chart[]>;
   createChart(chart: InsertChart): Promise<Chart>;
 
   // Agents
@@ -106,6 +107,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(charts).where(eq(charts.userId, userId)).orderBy(desc(charts.createdAt));
   }
 
+  async getAllCharts(): Promise<Chart[]> {
+    return await db.select().from(charts).orderBy(desc(charts.createdAt));
+  }
+
   async createChart(insertChart: InsertChart): Promise<Chart> {
     const [chart] = await db.insert(charts).values(insertChart).returning();
     return chart;
@@ -147,9 +152,9 @@ export class DatabaseStorage implements IStorage {
         COUNT(DISTINCT pa.id) as total_predictions,
         COUNT(DISTINCT CASE WHEN pr.selected_answer_id = pa.id THEN pa.id END) as wins,
         ROUND(CAST(AVG(pa.day_score) AS NUMERIC), 1) as avg_score
-      FROM agents a
-      LEFT JOIN prediction_answers pa ON pa.agent_id = a.id
-      LEFT JOIN prediction_requests pr ON pr.id = pa.request_id
+      FROM zkastro.agents a
+      LEFT JOIN zkastro.prediction_answers pa ON pa.agent_id = a.id
+      LEFT JOIN zkastro.prediction_requests pr ON pr.id = pa.request_id
       GROUP BY a.id, a.handle, a.method, a.description, a.reputation, a.is_active, a.created_at
       ORDER BY a.reputation DESC
     `);

@@ -1,190 +1,289 @@
-# Cosmic Predictions - Western Astrology Daily Prediction Platform
+# ZKastro - Privacy-First AI Astrology Platform
 
-An AI-powered Western astrology platform where users create natal charts and receive daily predictions from competing AI agents.
+A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, and blockchain transparency. Built for the Ethereum is for AI Hackathon.
 
-## Features
+## 🌟 Key Features
 
-- **Natal Chart Generation**: Create Western Equal-house charts from birth date, time, and location
-- **AI-Powered Predictions**: Two competing astrology agents analyze daily transits and provide predictions
-- **Reputation System**: Users vote on the best prediction, building agent reputation over time
-- **Agent Leaderboard**: Track the most trusted and accurate astrology agents
-- **Dark/Light Mode**: Beautiful cosmic-themed UI that works in both modes
-- **Timezone-Aware**: All calculations properly handle timezones using Luxon
+- **Zero-Knowledge Privacy**: Birth data calculated client-side, only cryptographic proofs sent to server
+- **On-Chain Verification**: Chart commitments and agent reputation recorded on Base Sepolia
+- **AI-Powered Predictions**: Competing agents provide daily astrological insights
+- **Transparent Reputation**: Agent performance immutably stored on blockchain
+- **Beautiful Modern UI**: Gradient-themed interface with real-time notifications
+- **Decentralized Agents**: Ready for Virtuals Protocol GAME SDK integration
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-- **Frontend**: React + TypeScript + Wouter routing + TanStack Query
-- **Backend**: Express.js with TypeScript
-- **Database**: PostgreSQL (Neon) with Drizzle ORM
-- **Astrology Engine**: astronomia library (VSOP87) for planetary calculations
-- **AI**: Perplexity API for polished prediction summaries
-- **UI**: Tailwind CSS + shadcn/ui components
-- **Fonts**: Inter (UI), JetBrains Mono (data), Cormorant Garamond (accent)
+### Frontend
+- React + TypeScript + Vite
+- TanStack Query for state management
+- Tailwind CSS + shadcn/ui components
+- Privy.io for authentication
+- Wouter for routing
 
-## Getting Started
+### Backend
+- Node.js + Express + TypeScript
+- Drizzle ORM + PostgreSQL (Neon Serverless)
+- Perplexity AI for predictions
+- Ethers.js v6 for blockchain
+
+### Blockchain
+- Base Sepolia (Ethereum L2)
+- Solidity 0.8.20
+- ChartRegistry contract
+- AgentReputation contract
+
+### Privacy & Security
+- Zero-Knowledge proofs (Poseidon hash)
+- Client-side position calculation
+- Server-side proof verification
+- Gas-sponsored transactions
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 20+
-- PostgreSQL database (Neon recommended)
-- Perplexity API key (optional - works without it using template text)
+- PostgreSQL database (Neon)
+- Perplexity API key
+- Base Sepolia testnet ETH
 
-### Installation
+### Local Development
 
-1. Clone the repository
-2. Install dependencies:
+1. **Clone repository**
+   ```bash
+   git clone <your-repo-url>
+   cd AIInterviewCoach
+   ```
+
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. Set up environment variables in `.env`:
-   ```
-   DATABASE_URL="your_neon_postgres_connection_string"
-   PERPLEXITY_API_KEY="your_perplexity_api_key" # optional
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
    ```
 
-4. Push database schema:
+4. **Push database schema**
    ```bash
    npm run db:push
    ```
 
-5. Seed the database with initial agents:
-   ```bash
-   npm run db:seed
-   ```
-
-6. Start the development server:
+5. **Start development server**
    ```bash
    npm run dev
    ```
 
-7. Open your browser to `http://localhost:5000`
+6. **Open browser**
+   ```
+   http://localhost:3000
+   ```
 
-## How It Works
+## 🌐 Production Deployment
 
-### 1. Create Your Natal Chart
+See [DEPLOY_NOW.md](DEPLOY_NOW.md) for step-by-step deployment to Railway + Vercel.
 
-Enter your birth date, time, and location. The system:
-- Computes planetary positions using VSOP87 astronomical algorithms
-- Calculates Equal house cusps (each house is exactly 30°)
-- Stores coarsened positions (0.01° precision) for privacy
-- Handles all timezone conversions using IANA timezone database
+**Quick Links:**
+- [Deployment Guide](DEPLOY_NOW.md) - 15-minute setup
+- [Environment Variables](ENV_VARIABLES.md) - All variables explained
+- [Complete Documentation](DEPLOYMENT.md) - Comprehensive guide
 
-### 2. Request a Daily Prediction
+## 📖 How It Works
 
-Select a target date (default: today). The system:
-- Selects 2 active agents using weighted random sampling (weight = 1 + reputation)
-- Each agent analyzes daily transits:
-  - Beneficial aspects (Jupiter/Venus to natal points): +3 points
-  - Harmonious aspects (Sun/Moon to natal points): +2 points
-  - Hard aspects (Mars/Saturn squares/oppositions): -3 points
-  - Mercury retrograde: -2 points
-  - Lunar phase (waxing/waning): ±1 point
-- Generates prediction summaries using Perplexity API (or templates)
-- Returns day score (0-100), summary, highlights, and cosmic factors
+### 1. Create Chart with Zero-Knowledge Privacy
 
-### 3. Choose the Best Prediction
+1. User enters birth data (date, time, location)
+2. **Client-side**: Planetary positions calculated in browser
+3. **Client-side**: ZK proof generated using Poseidon hash
+4. **Sent to server**: Only proof + positions (NOT raw birth data)
+5. **Server**: Verifies proof cryptographically
+6. **Blockchain**: Chart commitment stored on Base Sepolia
+7. **Database**: Full data stored with proof in PostgreSQL
 
-Compare the two agent predictions side-by-side:
-- View day scores with visual progress circles
-- Read AI-generated summaries and highlights
-- See specific astrological factors (aspects, retrogrades)
-- Select the prediction that resonates most
+**Privacy Guarantee**: Birth data never leaves your browser!
 
-### 4. Agent Reputation Grows
+### 2. Request Daily Prediction
 
-When you select a prediction:
-- The chosen agent gains +1 reputation
-- A reputation event is recorded for transparency
-- The leaderboard updates to reflect new rankings
+1. User clicks "Know Your Day"
+2. System selects 2 active agents
+3. Agents analyze daily transits vs natal chart
+4. AI generates personalized predictions
+5. Predictions displayed side-by-side
 
-## API Endpoints
+### 3. Select Best Prediction
 
-- `POST /api/chart` - Create a new natal chart
-- `POST /api/request` - Request daily predictions
-- `GET /api/request/:id` - Get prediction details
-- `POST /api/request/:id/select` - Select winning prediction
-- `GET /api/agents` - List all agents with reputation
+1. User chooses preferred prediction
+2. Agent reputation +1 in database
+3. **Blockchain**: Selection recorded on Base Sepolia
+4. Agent leaderboard updates
 
-## Project Structure
+### 4. Transparent Reputation
+
+All agent performance is:
+- ✅ Recorded on-chain
+- ✅ Publicly verifiable
+- ✅ Immutable
+- ✅ Cannot be manipulated
+
+## 🏗️ Architecture
+
+```
+┌─────────────┐         ┌─────────────┐         ┌──────────────┐
+│   Browser   │────────▶│   Server    │────────▶│  PostgreSQL  │
+│ (ZK Proofs) │         │  (Verify)   │         │   (Neon)     │
+└─────────────┘         └─────────────┘         └──────────────┘
+                               │
+                               ▼
+                        ┌─────────────┐
+                        │ Base Sepolia│
+                        │ (Blockchain)│
+                        └─────────────┘
+```
+
+## 📋 Smart Contracts
+
+### ChartRegistry
+- **Address**: `0x9E62826B28d72739524a00975905C4e618926690`
+- **Purpose**: Store chart commitments with ZK verification
+- **View**: [BaseScan](https://sepolia.basescan.org/address/0x9E62826B28d72739524a00975905C4e618926690)
+
+### AgentReputation  
+- **Address**: `0xb4fa5aC142ecA14bEBB99B94c104F36bA2AE32B7`
+- **Purpose**: Transparent agent reputation tracking
+- **View**: [BaseScan](https://sepolia.basescan.org/address/0xb4fa5aC142ecA14bEBB99B94c104F36bA2AE32B7)
+
+## 🎯 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chart` | Create chart (ZK mode only) |
+| GET | `/api/charts` | Get user's charts |
+| POST | `/api/request` | Request daily prediction |
+| GET | `/api/request/:id` | Get prediction details |
+| POST | `/api/request/:id/select` | Select winning prediction |
+| GET | `/api/agents` | List all agents |
+| GET | `/api/agents/stats` | Agent statistics |
+
+## 🔐 Security Features
+
+- ✅ Zero-Knowledge proof generation
+- ✅ Client-side cryptography
+- ✅ No raw birth data transmission
+- ✅ On-chain verification
+- ✅ Immutable reputation system
+- ✅ Gas-sponsored transactions
+- ✅ Session encryption
+- ✅ HTTPS enforcement
+
+## 🎨 UI Features
+
+- Beautiful gradient themes
+- Animated background orbs
+- Toast notifications with BaseScan links
+- Real-time ZK proof status
+- On-chain transaction tracking
+- Dark mode support
+- Fully responsive design
+- Glassmorphism effects
+
+## 👥 AI Agents
+
+### @auriga
+**Method**: Aggressive Transit Scoring  
+**Approach**: Optimistic, emphasizes beneficial aspects  
+**Personality**: Growth-oriented, encouraging
+
+### @nova
+**Method**: Conservative Transit Analysis  
+**Approach**: Balanced, cautious with challenging aspects  
+**Personality**: Practical, measured guidance
+
+Both agents use identical astronomical data but employ different weighting strategies.
+
+## 🔬 Technical Details
+
+### Astrology Engine
+- **Zodiac**: Tropical (Western)
+- **House System**: Equal House (30° per house)
+- **Planets**: Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn
+- **Aspects**: Conjunction, Opposition, Square, Trine, Sextile
+- **Library**: astronomia (VSOP87)
+
+### Zero-Knowledge System
+- **Hash Function**: Poseidon
+- **Proof Type**: Commitment + Verification
+- **Privacy Level**: Maximum (birth data never exposed)
+- **Verification**: On-chain + Server-side
+
+### Blockchain Integration
+- **Network**: Base Sepolia (Ethereum L2)
+- **Contracts**: Deployed via ethers.js v6
+- **Gas**: Platform-sponsored
+- **Explorer**: BaseScan
+
+## 📁 Project Structure
 
 ```
 /
-├── client/               # Frontend React app
+├── client/                 # React frontend
 │   ├── src/
-│   │   ├── components/   # Reusable UI components
-│   │   ├── pages/        # Page components
-│   │   └── lib/          # Client utilities
-├── server/               # Backend Express server
-│   ├── routes.ts         # API route handlers
-│   ├── storage.ts        # Database interface
-│   └── db.ts             # Drizzle client
-├── shared/
-│   └── schema.ts         # Shared types and schemas
-└── lib/                  # Shared utilities
-    ├── astro/            # Astronomy calculations
-    └── agents/           # Agent implementations
+│   │   ├── components/     # UI components
+│   │   ├── pages/          # Page components
+│   │   ├── hooks/          # Custom hooks
+│   │   └── lib/            # Utilities
+├── server/                 # Express backend
+│   ├── routes.ts           # API routes
+│   ├── storage.ts          # Database layer
+│   └── db.ts               # Drizzle config
+├── contracts/              # Smart contracts
+│   ├── ChartRegistry.sol
+│   └── AgentReputation.sol
+├── lib/                    # Shared utilities
+│   ├── astro/              # Astronomy engine
+│   ├── agents/             # AI agents
+│   └── blockchain/         # On-chain integration
+└── shared/
+    └── schema.ts           # Database schema
 ```
 
-## Astrology Engine
+## 🚀 Deployment
 
-The platform uses:
-- **Tropical Zodiac**: Traditional Western system
-- **Equal House System**: Each house is exactly 30° from the Ascendant
-- **Planetary Bodies**: Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn
-- **Aspects**: Conjunction, Opposition, Square (6° orb), Trine (4° orb), Sextile (3° orb)
-- **Retrograde Tracking**: Notes retrograde planets in natal and transit charts
+**Quick Deploy (15 minutes):**
 
-## Agent System
+1. Deploy backend to Railway
+2. Deploy frontend to Vercel
+3. Update environment variables
+4. Done!
 
-Two built-in agents with different approaches:
+See [DEPLOY_NOW.md](DEPLOY_NOW.md) for complete instructions.
 
-### @auriga
-- **Method**: Aggressive Transit Scoring
-- **Focus**: Strong emphasis on benefic aspects
-- **Personality**: Optimistic, growth-oriented predictions
+## 🏆 Hackathon Features
 
-### @nova
-- **Method**: Conservative Transit Analysis
-- **Focus**: Balanced assessment with caution on malefics
-- **Personality**: Measured, practical guidance
+Built for **Ethereum is for AI Hackathon**:
 
-Both agents use the same astronomical data but weight factors differently, providing users with varied perspectives.
+- ✅ Zero-Knowledge proofs for privacy
+- ✅ On-chain transparency
+- ✅ AI agent competition
+- ✅ Base (Ethereum L2) integration
+- ✅ Decentralized reputation
+- ✅ Gas sponsorship
+- ✅ Modern Web3 UX
 
-## ZK-Proof Support (Feature-Flagged)
-
-The platform includes optional zero-knowledge proof capabilities:
-- Set `ZK_ENABLED=true` to enable
-- Requires additional setup: ephemeris commitments, on-chain verifier contract
-- See spec document for full ZK implementation details
-
-## Development
-
-```bash
-# Run development server
-npm run dev
-
-# Push database schema changes
-npm run db:push
-
-# Seed database
-npm run db:seed
-
-# Run tests (when implemented)
-npm test
-```
-
-## Privacy
-
-- Birth data is hashed with a random salt before storage
-- Planetary positions are coarsened to 0.01° precision
-- User email is optional (anonymous sessions supported)
-- Chart data can optionally be published on-chain with ZK proofs
-
-## License
+## 📄 License
 
 MIT
 
-## Credits
+## 🙏 Acknowledgments
 
-Built with love for astrology enthusiasts and AI explorers.
+- Ethereum Foundation
+- Virtuals Protocol
+- Base Network
+- Privy.io
+- Perplexity AI
+- Neon Database
+
+---
+
+**Built with 💜 for the Ethereum is for AI Hackathon**

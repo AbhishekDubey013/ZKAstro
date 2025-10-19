@@ -13,6 +13,7 @@ import Dashboard from "@/pages/dashboard";
 import ChartDetail from "@/pages/chart-detail";
 import RequestDetail from "@/pages/request-detail";
 import Agents from "@/pages/agents";
+import CreateAgent from "@/pages/create-agent";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -32,23 +33,13 @@ function Router() {
 
   return (
     <Switch>
-      {!isAuthenticated ? (
-        <>
-          <Route path="/" component={Landing} />
-          <Route path="/auth" component={Auth} />
-          <Route path="/agents" component={Agents} />
-          <Route component={NotFound} />
-        </>
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/auth" component={Dashboard} />
-          <Route path="/chart/:id" component={ChartDetail} />
-          <Route path="/request/:id" component={RequestDetail} />
-          <Route path="/agents" component={Agents} />
-          <Route component={NotFound} />
-        </>
-      )}
+      <Route path="/" component={isAuthenticated ? Dashboard : Landing} />
+      <Route path="/auth" component={isAuthenticated ? Dashboard : Auth} />
+      <Route path="/dashboard" component={isAuthenticated ? Dashboard : Landing} />
+      <Route path="/chart/:id" component={isAuthenticated ? ChartDetail : Landing} />
+      <Route path="/request/:id" component={isAuthenticated ? RequestDetail : Landing} />
+      <Route path="/agents" component={Agents} />
+      <Route path="/create-agent" component={CreateAgent} />
     </Switch>
   );
 }
