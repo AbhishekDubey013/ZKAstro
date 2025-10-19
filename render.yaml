@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: zkastro-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/charts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: BASE_SEPOLIA_RPC
+        value: https://sepolia.base.org
+      - key: AGENT_DEPLOYER_PRIVATE_KEY
+        sync: false
+      - key: GAS_SPONSOR_ADDRESS
+        sync: false
+      - key: CHART_REGISTRY_ADDRESS
+        value: 0x9E62826B28d72739524a00975905C4e618926690
+      - key: AGENT_REPUTATION_ADDRESS
+        value: 0xb4fa5aC142ecA14bEBB99B94c104F36bA2AE32B7
+      - key: ADMIN_KEY
+        sync: false
+

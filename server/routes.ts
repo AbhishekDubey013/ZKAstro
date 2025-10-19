@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAdminRoutes } from "./admin-routes";
+import { createAgentHandler, getAgentCreationStats } from "./agent-creation";
 import { DateTime } from "luxon";
 import crypto from "crypto";
 import { calculatePlanetaryPositions } from "../lib/astro/planets";
@@ -26,6 +28,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
+      // In local dev mode (using Privy), there's no server-side user session
+      // Return 401 to indicate not authenticated, frontend will use Privy
+      if (!req.user || !req.user.claims) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       res.json(user);
@@ -73,9 +81,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/charts - Get all charts for authenticated user
   app.get("/api/charts", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const charts = await storage.getChartsByUserId(userId);
-      res.json(charts);
+      // In local dev mode (Privy), there's no req.user - return all charts
+      // In production with Replit auth, filter by user ID
+      if (req.user && req.user.claims && req.user.claims.sub) {
+        const userId = req.user.claims.sub;
+        const charts = await storage.getChartsByUserId(userId);
+        res.json(charts);
+      } else {
+        // Local dev mode - return all charts (since we're using Privy on frontend)
+        const allCharts = await storage.getAllCharts();
+        res.json(allCharts);
+      }
     } catch (error: any) {
       console.error("Error getting charts:", error);
       res.status(500).json({ error: error.message || "Failed to get charts" });
@@ -95,23 +111,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/chart - Create a new natal chart (supports both normal and ZK mode)
+  // POST /api/chart - Create a new natal chart (ZK MODE ONLY - Maximum Privacy)
   app.post("/api/chart", async (req, res) => {
     try {
-      // Get userId from session if authenticated
+      // Get userId from session if authenticated (optional for ZK mode)
       let userId = (req as any).user?.claims?.sub || null;
       
-      // TEST MODE: Allow chart creation without auth when using ZK proofs
-      // This enables testing the Zero-Knowledge privacy flow without wallet authentication
-      if (!userId && req.body.zkEnabled === true) {
-        console.log("✅ [ZK TEST MODE] Allowing anonymous chart creation with ZK proof");
-        userId = null; // Charts can be created without userId for ZK testing
+      // ZK MODE ONLY: Client MUST provide pre-calculated positions + cryptographic proof
+      // Server NEVER sees raw birth data - maximum privacy!
+      if (req.body.zkEnabled !== true) {
+        return res.status(400).json({
+          error: "ZK mode required",
+          message: "This application only accepts Zero-Knowledge chart creation for maximum privacy. Your birth data is calculated in your browser and never sent to the server."
+        });
       }
-
-      // Check if this is a ZK mode request
-      if (req.body.zkEnabled === true) {
-        // ZK MODE: Client provides pre-calculated positions + proof
-        const zkBody: CreateChartZKRequest = createChartZKRequestSchema.parse(req.body);
+      
+      // Parse and validate ZK request
+      const zkBody: CreateChartZKRequest = createChartZKRequestSchema.parse(req.body);
 
         // VERIFY ZK PROOF using Poseidon hash (cryptographically sound)
         const { verifyZKProof } = await import('../lib/zkproof/poseidon-proof');
@@ -130,11 +146,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!isValid) {
           return res.status(400).json({
             error: "ZK proof verification failed",
-            message: "The cryptographic proof could not be verified"
+            message: "The cryptographic proof could not be verified. Please try regenerating your chart."
           });
         }
         
-        // Save chart with VERIFIED ZK proof (raw birth data never stored)
+        console.log(`✅ ZK Proof verified for chart commitment: ${zkBody.inputsHash.slice(0, 16)}...`);
+        
+        // Save chart with VERIFIED ZK proof (raw birth data NEVER stored on server)
         const chart = await storage.createChart({
           userId: userId,
           inputsHash: zkBody.inputsHash,
@@ -145,6 +163,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           zkSalt: zkBody.zkSalt,
         });
 
+        // 🔗 RECORD ON-CHAIN: Chart commitment to Base Sepolia
+        // Transparent, immutable proof of chart existence
+        const onChainResult = await import('../lib/blockchain/onchain-registry.js')
+          .then(module => module.recordChartOnChain(
+            chart.id,
+            zkBody.params,
+            userId,
+            zkBody.zkProof
+          ))
+          .catch(err => {
+            console.error('⚠️  On-chain recording failed (non-blocking):', err.message);
+            return null;
+          });
+
         return res.json({
           chartId: chart.id,
           params: zkBody.params,
@@ -154,71 +186,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             proof: zkBody.zkProof,
             verified: true, // Cryptographically verified!
             algoVersion: "western-equal-v1",
+            privacy: "maximum", // Birth data never touched the server!
+          },
+          onChain: onChainResult ? {
+            recorded: true,
+            txHash: onChainResult.txHash,
+            chartHash: onChainResult.chartHash,
+            explorer: `https://sepolia-explorer.base.org/tx/${onChainResult.txHash}`,
+          } : {
+            recorded: false,
+            reason: 'Contracts not deployed or error occurred',
           },
         });
+      } catch (error: any) {
+        console.error("Error creating ZK chart:", error);
+        
+        // Provide helpful error messages
+        if (error.message?.includes("parse")) {
+          return res.status(400).json({ 
+            error: "Invalid chart data",
+            message: "Please ensure all required fields are provided and in the correct format."
+          });
+        }
+        
+        res.status(400).json({ 
+          error: error.message || "Failed to create chart",
+          message: "Chart creation failed. Please try again."
+        });
       }
+    });
 
-      // NORMAL MODE: Server calculates positions from birth data
-      const body: CreateChartRequest = createChartRequestSchema.parse(req.body);
-      
-      // Convert to UTC using timezone
-      const localDateTime = DateTime.fromFormat(
-        `${body.dob} ${body.tob}`,
-        "yyyy-MM-dd HH:mm",
-        { zone: body.tz }
-      );
-      
-      if (!localDateTime.isValid) {
-        return res.status(400).json({ error: "Invalid date/time or timezone" });
-      }
-
-      const utcDateTime = localDateTime.toUTC();
-
-      // Calculate planetary positions
-      const { planets, retro } = calculatePlanetaryPositions(utcDateTime);
-      
-      // Calculate Ascendant and MC
-      const { asc, mc } = calculateAscendant(utcDateTime, body.place.lat, body.place.lon);
-
-      // Create input hash for privacy
-      const inputString = `${body.dob}|${body.tob}|${body.place.lat}|${body.place.lon}|${crypto.randomBytes(16).toString('hex')}`;
-      const inputsHash = crypto.createHash('sha256').update(inputString).digest('hex');
-
-      // Prepare chart params
-      const paramsJson = {
-        quant: "centi-deg",
-        zodiac: "tropical",
-        houseSystem: "equal",
-        planets,
-        retro,
-        asc,
-        mc,
-      };
-
-      // Save chart to database (associate with user if authenticated)
-      const chart = await storage.createChart({
-        userId: userId,
-        inputsHash,
-        algoVersion: "western-equal-v1",
-        paramsJson,
-        zkEnabled: body.zk || false,
-      });
-
-      res.json({
-        chartId: chart.id,
-        params: paramsJson,
-        inputsHash,
-        zk: {
-          enabled: false,
-          ephemerisRoot: null,
-          algoVersion: "western-equal-v1",
-        },
-      });
-    } catch (error: any) {
-      console.error("Error creating chart:", error);
-      res.status(400).json({ error: error.message || "Failed to create chart" });
-    }
-  });
 
   // GET /api/chart/:chartId/today-prediction - Get or create today's prediction
   app.get("/api/chart/:chartId/today-prediction", async (req, res) => {
@@ -373,7 +370,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         delta: 1,
       });
 
-      res.json({ ok: true });
+      // 🔗 RECORD ON-CHAIN: Agent selection for transparent scoring
+      // This makes agent reputation immutable and verifiable
+      const userId = (req as any).user?.claims?.sub || null;
+      const onChainTxHash = await import('../lib/blockchain/onchain-registry.js')
+        .then(module => module.recordAgentSelectionOnChain(
+          selectedAnswer.agentId,
+          request.id,
+          userId,
+          1 // reputation bonus
+        ))
+        .catch(err => {
+          console.error('⚠️  On-chain reputation update failed (non-blocking):', err.message);
+          return null;
+        });
+
+      res.json({ 
+        ok: true,
+        onChain: onChainTxHash ? {
+          recorded: true,
+          txHash: onChainTxHash,
+          explorer: `https://sepolia-explorer.base.org/tx/${onChainTxHash}`,
+          message: 'Agent reputation updated on Base Sepolia',
+        } : {
+          recorded: false,
+          reason: 'Contracts not deployed or error occurred',
+        },
+      });
     } catch (error: any) {
       console.error("Error selecting answer:", error);
       res.status(400).json({ error: error.message || "Failed to select answer" });
@@ -391,9 +414,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Prediction request not found" });
       }
 
-      // Get chat messages
-      const messages = await storage.getChatMessages(requestId);
-      res.json(messages);
+      // Return empty messages - chat is now dynamic/not persisted
+      // Each question gets a fresh contextual response
+      res.json([]);
     } catch (error: any) {
       console.error("Error getting chat messages:", error);
       res.status(500).json({ error: error.message || "Failed to get chat messages" });
@@ -436,12 +459,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse factors
       const transitFactors = primaryAnswer.factors.split('\n').filter(f => f.trim());
 
-      // Get conversation history
-      const existingMessages = await storage.getChatMessages(requestId);
-      const conversationHistory = existingMessages.map(msg => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      }));
+      // No conversation history - each question is answered fresh with full prediction context
+      // This keeps responses focused and practical
+      const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
       // Generate AI response
       console.log('🤖 Generating AI response...');
@@ -459,37 +479,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('✅ AI response generated:', aiResponse.substring(0, 100) + '...');
 
-      // Save user message
-      const userMessage = await storage.createChatMessage({
-        predictionRequestId: requestId,
-        userId,
-        role: 'user',
-        content: message,
-        context: {
-          dayScore: primaryAnswer.dayScore,
-          transitFactors: transitFactors.slice(0, 3),
-        },
-      });
-
-      console.log('💾 User message saved:', userMessage.id);
-
-      // Save AI response
-      const assistantMessage = await storage.createChatMessage({
-        predictionRequestId: requestId,
-        userId: null,
-        role: 'assistant',
-        content: aiResponse,
-        context: {
-          dayScore: primaryAnswer.dayScore,
-          transitFactors: transitFactors.slice(0, 3),
-        },
-      });
-
-      console.log('💾 Assistant message saved:', assistantMessage.id);
-
+      // Return dynamic response without saving to database
+      // This keeps the chat lightweight and contextual
       res.json({
-        userMessage,
-        assistantMessage,
+        userMessage: {
+          id: `temp-${Date.now()}-user`,
+          predictionRequestId: requestId,
+          userId,
+          role: 'user',
+          content: message,
+          createdAt: new Date(),
+          context: null,
+        },
+        assistantMessage: {
+          id: `temp-${Date.now()}-assistant`,
+          predictionRequestId: requestId,
+          userId: null,
+          role: 'assistant',
+          content: aiResponse,
+          createdAt: new Date(),
+          context: null,
+        },
       });
     } catch (error: any) {
       console.error("❌ Error sending chat message:", error);
@@ -518,6 +528,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to get agent stats" });
     }
   });
+
+  // Setup admin routes for agent deployment and management
+  setupAdminRoutes(app);
+
+  // Agent creation routes (public)
+  app.post('/api/admin/agents/create', createAgentHandler);
+  app.get('/api/agents/creation-stats', getAgentCreationStats);
 
   const httpServer = createServer(app);
   return httpServer;

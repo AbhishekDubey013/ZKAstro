@@ -1,11 +1,14 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, real, index } from "drizzle-orm/pg-core";
+import { pgTable, pgSchema, text, varchar, timestamp, integer, boolean, jsonb, real, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Use a dedicated schema for ZKastro to avoid conflicts with existing tables
+export const zkastroSchema = pgSchema("zkastro");
+
 // Session storage table for Replit Auth
-export const sessions = pgTable(
+export const sessions = zkastroSchema.table(
   "sessions",
   {
     sid: varchar("sid").primaryKey(),
@@ -16,7 +19,7 @@ export const sessions = pgTable(
 );
 
 // Users table - extended for Replit Auth
-export const users = pgTable("users", {
+export const users = zkastroSchema.table("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").unique(),
   firstName: varchar("first_name"),
@@ -33,7 +36,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 }));
 
 // Charts table - stores natal chart data
-export const charts = pgTable("charts", {
+export const charts = zkastroSchema.table("charts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
   inputsHash: text("inputs_hash").notNull(),
@@ -81,8 +84,8 @@ export const chartsRelations = relations(charts, ({ one, many }) => ({
   requests: many(predictionRequests),
 }));
 
-// Agents table - AI astrology agents
-export const agents = pgTable("agents", {
+// Agents table - AI astrology agents (decentralized via Virtuals GAME SDK)
+export const agents = zkastroSchema.table("agents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   handle: text("handle").unique().notNull(),
   method: text("method").notNull(),
@@ -90,6 +93,13 @@ export const agents = pgTable("agents", {
   reputation: integer("reputation").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Virtuals GAME SDK / On-chain fields
+  contractAddress: text("contract_address"), // Deployed agent contract on Base Sepolia
+  deploymentTx: text("deployment_tx"), // Deployment transaction hash
+  chainId: integer("chain_id").default(84532), // Base Sepolia
+  tokenAddress: text("token_address"), // Agent token (if tokenized)
+  personality: text("personality"), // Agent's personality/approach
+  aggressiveness: real("aggressiveness").default(1.0), // Scoring bias (0.5-1.5)
 });
 
 export const agentsRelations = relations(agents, ({ many }) => ({
@@ -98,7 +108,7 @@ export const agentsRelations = relations(agents, ({ many }) => ({
 }));
 
 // Prediction requests table
-export const predictionRequests = pgTable("prediction_requests", {
+export const predictionRequests = zkastroSchema.table("prediction_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
   chartId: varchar("chart_id").references(() => charts.id).notNull(),
@@ -123,7 +133,7 @@ export const predictionRequestsRelations = relations(predictionRequests, ({ one,
 }));
 
 // Prediction answers table
-export const predictionAnswers = pgTable("prediction_answers", {
+export const predictionAnswers = zkastroSchema.table("prediction_answers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   requestId: varchar("request_id").references(() => predictionRequests.id).notNull(),
   agentId: varchar("agent_id").references(() => agents.id).notNull(),
@@ -146,7 +156,7 @@ export const predictionAnswersRelations = relations(predictionAnswers, ({ one })
 }));
 
 // Reputation events table
-export const reputationEvents = pgTable("reputation_events", {
+export const reputationEvents = zkastroSchema.table("reputation_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   agentId: varchar("agent_id").references(() => agents.id).notNull(),
   requestId: varchar("request_id").notNull(),
@@ -162,7 +172,7 @@ export const reputationEventsRelations = relations(reputationEvents, ({ one }) =
 }));
 
 // Chat messages table - Interactive Q&A about predictions
-export const chatMessages = pgTable("chat_messages", {
+export const chatMessages = zkastroSchema.table("chat_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   predictionRequestId: varchar("prediction_request_id").references(() => predictionRequests.id).notNull(),
   userId: varchar("user_id").references(() => users.id),

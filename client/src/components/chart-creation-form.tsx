@@ -63,6 +63,11 @@ export default function ChartCreationForm() {
       
       try {
         // 1. Calculate chart positions in the browser (birth data never leaves)
+        toast({
+          title: "🔒 Calculating positions locally...",
+          description: "Your birth data stays in your browser",
+        });
+        
         const positions = await calculateChartClientSide(
           values.dob,
           values.tob,
@@ -72,6 +77,11 @@ export default function ChartCreationForm() {
         );
 
         // 2. Generate cryptographic ZK proof using Poseidon hash
+        toast({
+          title: "🔐 Generating Zero-Knowledge proof...",
+          description: "Creating cryptographic proof without revealing your data",
+        });
+        
         const zkProof = await generateZKProof(
           values.dob,
           values.tob,
@@ -81,7 +91,17 @@ export default function ChartCreationForm() {
           positions
         );
 
+        toast({
+          title: "✅ ZK Proof Generated!",
+          description: `Commitment: ${zkProof.commitment.substring(0, 20)}...`,
+        });
+
         // 3. Send ONLY proof + positions to server (no raw birth data!)
+        toast({
+          title: "📡 Sending to server...",
+          description: "Only proof and positions (no birth data!)",
+        });
+        
         const response = await apiRequest("POST", "/api/chart", {
           zkEnabled: true,
           inputsHash: zkProof.commitment,
@@ -105,10 +125,42 @@ export default function ChartCreationForm() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/charts"] });
+      
+      // Show ZK verification success
       toast({
-        title: "Chart created with Zero-Knowledge proof!",
-        description: "Your birth data was never sent to the server. Privacy guaranteed.",
+        title: "✅ Server Verified ZK Proof!",
+        description: "Your proof was validated without exposing your data",
       });
+      
+      // Show on-chain recording if successful
+      if (data.onChain?.recorded) {
+        toast({
+          title: "⛓️ Recorded on Base Sepolia!",
+          description: (
+            <div className="mt-2 space-y-2">
+              <p className="text-sm">Chart commitment stored on blockchain</p>
+              <a 
+                href={`https://sepolia.basescan.org/tx/${data.onChain.txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-xs text-blue-500 hover:text-blue-700 underline"
+              >
+                View on BaseScan →
+              </a>
+            </div>
+          ),
+          duration: 10000, // Show for 10 seconds
+        });
+      }
+      
+      // Final success message
+      setTimeout(() => {
+        toast({
+          title: "🎉 Chart Created Successfully!",
+          description: "Privacy guaranteed. View your chart details now.",
+        });
+      }, 1000);
+      
       setLocation(`/chart/${data.chartId}`);
     },
     onError: (error: any) => {

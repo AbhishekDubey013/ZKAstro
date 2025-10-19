@@ -96,6 +96,9 @@ export default function Landing() {
             <p className="text-sm sm:text-base text-gray-500 dark:text-gray-500">
               🔮 Western Equal House System • 🔐 Zero-Knowledge Privacy • ✨ Powered by Perplexity AI
             </p>
+            <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-600">
+              🏆 Built with Virtuals Protocol GAME SDK on Base (Ethereum L2)
+            </p>
           </div>
         </div>
       </div>

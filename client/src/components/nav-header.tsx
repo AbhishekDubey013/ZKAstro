@@ -23,6 +23,13 @@ export function NavHeader() {
           >
             Agents
           </Link>
+          <Link 
+            href="/create-agent" 
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-md hover-elevate active-elevate-2" 
+            data-testid="link-create-agent"
+          >
+            🤖 Create Agent
+          </Link>
           <ThemeToggle />
         </div>
       </div>

@@ -35,8 +35,13 @@ export function PredictionChat({ requestId }: PredictionChatProps) {
       });
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/request", requestId, "chat"] });
+    onSuccess: (data) => {
+      // Add the new messages to the query cache manually instead of refetching
+      queryClient.setQueryData(["/api/request", requestId, "chat"], (old: ChatMessage[] = []) => [
+        ...old,
+        data.userMessage,
+        data.assistantMessage,
+      ]);
       setMessage("");
     },
     onError: (error: any) => {
