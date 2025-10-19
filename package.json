@@ -96,8 +96,6 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-ethers": "^3.1.0",
-    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@replit/vite-plugin-cartographer": "^0.3.1",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
@@ -117,7 +115,6 @@
     "drizzle-kit": "^0.31.4",
     "esbuild": "^0.25.0",
     "ethers": "^6.15.0",
-    "hardhat": "^3.0.7",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
