@@ -12,14 +12,25 @@ import { useState } from "react";
 
 export default function Dashboard() {
   const { user, isPrivyAuth } = useAuth();
-  const { logout: privyLogout } = usePrivy();
+  const { logout: privyLogout, user: privyUser } = usePrivy();
   const [, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  // Fetch user's charts (works in local dev because auth middleware is bypassed)
+  // Get Privy user ID (wallet address or email)
+  const privyUserId = privyUser?.wallet?.address || privyUser?.email?.address || null;
+
+  // Fetch user's charts with Privy user ID for filtering
   const { data: charts, isLoading: chartsLoading } = useQuery<Chart[]>({
-    queryKey: ["/api/charts"],
-    enabled: !!user, // Fetch charts for all authenticated users
+    queryKey: ["/api/charts", privyUserId],
+    queryFn: async () => {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+      const baseUrl = privyUserId ? `/api/charts?privyUserId=${encodeURIComponent(privyUserId)}` : `/api/charts`;
+      const url = API_BASE_URL ? `${API_BASE_URL}${baseUrl}` : baseUrl;
+      const response = await fetch(url, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch charts");
+      return response.json();
+    },
+    enabled: !!user && !!privyUserId, // Only fetch if user is authenticated and has Privy ID
     retry: false,
     refetchInterval: false,
     refetchOnWindowFocus: false,

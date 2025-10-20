@@ -19,6 +19,7 @@ import { useLocation } from "wouter";
 import { Sparkles, Calendar, Clock, MapPin, Navigation } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useEffect, useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 
 const formSchema = z.object({
   dob: z.string().min(1, "Date of birth is required"),
@@ -33,9 +34,13 @@ export default function ChartCreationForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [detectingLocation, setDetectingLocation] = useState(false);
+  const { user: privyUser } = usePrivy();
 
   // Auto-detect system timezone
   const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  // Get Privy user ID (wallet address or email)
+  const privyUserId = privyUser?.wallet?.address || privyUser?.email?.address || null;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -104,6 +109,7 @@ export default function ChartCreationForm() {
         
         const response = await apiRequest("POST", "/api/chart", {
           zkEnabled: true,
+          privyUserId: privyUserId, // Include Privy user ID for chart ownership
           inputsHash: zkProof.commitment,
           zkProof: zkProof.proof,
           zkSalt: zkProof.salt,

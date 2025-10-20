@@ -81,16 +81,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/charts - Get all charts for authenticated user
   app.get("/api/charts", isAuthenticated, async (req: any, res) => {
     try {
-      // In local dev mode (Privy), there's no req.user - return all charts
-      // In production with Replit auth, filter by user ID
-      if (req.user && req.user.claims && req.user.claims.sub) {
-        const userId = req.user.claims.sub;
+      // Get userId from session OR from query parameter (Privy wallet address)
+      let userId = req.user?.claims?.sub || req.query.privyUserId || null;
+      
+      if (userId) {
+        // Filter charts by user ID (works for both Replit and Privy auth)
         const charts = await storage.getChartsByUserId(userId);
         res.json(charts);
       } else {
-        // Local dev mode - return all charts (since we're using Privy on frontend)
-        const allCharts = await storage.getAllCharts();
-        res.json(allCharts);
+        // No user context - return empty array for security
+        console.warn("⚠️ No userId provided for /api/charts - returning empty array");
+        res.json([]);
       }
     } catch (error: any) {
       console.error("Error getting charts:", error);
@@ -114,8 +115,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/chart - Create a new natal chart (ZK MODE ONLY - Maximum Privacy)
   app.post("/api/chart", async (req, res) => {
     try {
-      // Get userId from session if authenticated (optional for ZK mode)
-      let userId = (req as any).user?.claims?.sub || null;
+      // Get userId from session OR from request body (Privy wallet address)
+      let userId = (req as any).user?.claims?.sub || req.body.privyUserId || null;
       
       // ZK MODE ONLY: Client MUST provide pre-calculated positions + cryptographic proof
       // Server NEVER sees raw birth data - maximum privacy!
