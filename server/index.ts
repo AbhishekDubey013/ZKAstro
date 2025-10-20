@@ -8,8 +8,10 @@ const app = express();
 app.use((req, res, next) => {
   const allowedOrigins = [
     'http://localhost:3000',
+    'http://localhost:5000',
     'http://localhost:5173',
     'https://zk-astro-tyvk6x8as-abhisheks-projects-74a6b2ad.vercel.app',
+    'https://zk-astro-3prdzov0y-abhisheks-projects-74a6b2ad.vercel.app',
     // Allow any vercel.app domain
     /https:\/\/.*\.vercel\.app$/
   ];
@@ -27,14 +29,15 @@ app.use((req, res, next) => {
     if (isAllowed) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+      res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
     }
   }
   
-  // Handle preflight
+  // Handle preflight - must set headers before sending response
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    return res.status(200).end();
   }
   
   next();
