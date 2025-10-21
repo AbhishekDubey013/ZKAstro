@@ -61,7 +61,14 @@ export default function Dashboard() {
     const mostRecentChart = charts[0];
     
     try {
-      const response = await fetch(`/api/chart/${mostRecentChart.id}/today-prediction`);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+      const url = `${API_BASE_URL}/api/chart/${mostRecentChart.id}/today-prediction`;
+      const response = await fetch(url, { credentials: 'include' });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get prediction: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.requestId) {
