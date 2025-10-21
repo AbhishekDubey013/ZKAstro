@@ -130,6 +130,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse and validate ZK request
       const zkBody: CreateChartZKRequest = createChartZKRequestSchema.parse(req.body);
 
+      // Ensure user exists in database (create if needed for Privy users)
+      if (userId) {
+        await storage.ensureUser(userId);
+      }
+
         // VERIFY ZK PROOF using Poseidon hash (cryptographically sound)
         const { verifyZKProof } = await import('../lib/zkproof/poseidon-proof');
         
