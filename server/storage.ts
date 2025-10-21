@@ -31,6 +31,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
+  ensureUser(userId: string): Promise<User>;
 
   // Charts
   getChart(id: string): Promise<Chart | undefined>;
@@ -94,6 +95,21 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
+    return user;
+  }
+
+  async ensureUser(userId: string): Promise<User> {
+    // Check if user exists
+    let user = await this.getUser(userId);
+    
+    if (!user) {
+      // Create a minimal user record with the Privy ID
+      user = await this.upsertUser({
+        id: userId,
+        email: userId.startsWith('0x') ? `${userId}@wallet` : userId,
+      });
+    }
+    
     return user;
   }
 
