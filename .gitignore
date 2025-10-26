@@ -76,3 +76,9 @@ replit.nix
 # Local scripts
 *.local.sh
 *.local.ts
+
+# Rust / Stylus
+target/
+Cargo.lock
+*.wasm
+contracts/deployment-*.json
