@@ -84,6 +84,41 @@ export const chartsRelations = relations(charts, ({ one, many }) => ({
   requests: many(predictionRequests),
 }));
 
+// Farcaster users table - for miniapp
+export const farcasterUsers = zkastroSchema.table("farcaster_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").unique().notNull(), // Farcaster user ID or session ID
+  dob: text("dob").notNull(), // Date of birth
+  tob: text("tob").notNull(), // Time of birth
+  location: text("location").notNull(), // Place of birth
+  lat: real("lat").notNull(), // Latitude
+  lon: real("lon").notNull(), // Longitude
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Farcaster predictions table
+export const farcasterPredictions = zkastroSchema.table("farcaster_predictions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  prediction: text("prediction").notNull(),
+  luckyNumber: integer("lucky_number").notNull(),
+  luckyColor: text("lucky_color").notNull(),
+  mood: text("mood").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Farcaster ratings table
+export const farcasterRatings = zkastroSchema.table("farcaster_ratings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  rating: integer("rating").notNull(), // 0-5
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Agents table - AI astrology agents (decentralized via Virtuals GAME SDK)
 export const agents = zkastroSchema.table("agents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

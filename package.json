@@ -12,15 +12,23 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx --env-file=.env server/index.ts",
     "build": "npx vite build && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "vercel-build": "npx vite build",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "stylus:setup": "npx tsx scripts/check-arbitrum-setup.ts",
+    "stylus:build": "cd contracts && cargo build --release --target wasm32-unknown-unknown",
+    "stylus:check": "cd contracts && cargo stylus check",
+    "deploy:stylus:testnet": "npx tsx contracts/deploy-stylus.ts arbitrum-sepolia",
+    "deploy:stylus:mainnet": "npx tsx contracts/deploy-stylus.ts arbitrum-one"
   },
   "dependencies": {
+    "@farcaster/auth-kit": "^0.8.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
     "@privy-io/react-auth": "^3.3.0",
+    "@privy-io/server-auth": "^1.32.5",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-aspect-ratio": "^1.1.3",
@@ -96,6 +104,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@replit/vite-plugin-cartographer": "^0.3.1",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
@@ -115,6 +124,7 @@
     "drizzle-kit": "^0.31.4",
     "esbuild": "^0.25.0",
     "ethers": "^6.15.0",
+    "hardhat": "^2.26.3",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",

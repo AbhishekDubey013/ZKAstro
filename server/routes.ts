@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupAdminRoutes } from "./admin-routes";
 import { createAgentHandler, getAgentCreationStats } from "./agent-creation";
+import farcasterRoutes from "./farcaster-routes";
 import { DateTime } from "luxon";
 import crypto from "crypto";
 import { calculatePlanetaryPositions } from "../lib/astro/planets";
@@ -24,6 +25,9 @@ import {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first
   await setupAuth(app);
+
+  // Farcaster miniapp routes
+  app.use('/api/farcaster', farcasterRoutes);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
