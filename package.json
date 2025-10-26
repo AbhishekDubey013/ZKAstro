@@ -15,6 +15,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push",
+    "stylus:setup": "npx tsx scripts/check-arbitrum-setup.ts",
     "stylus:build": "cd contracts && cargo build --release --target wasm32-unknown-unknown",
     "stylus:check": "cd contracts && cargo stylus check",
     "deploy:stylus:testnet": "npx tsx contracts/deploy-stylus.ts arbitrum-sepolia",
