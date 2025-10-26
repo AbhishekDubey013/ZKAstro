@@ -9,8 +9,72 @@ import {
 } from "../shared/schema";
 import { ethers } from "ethers";
 import { generateZKProof } from "../lib/zkproof/poseidon-proof";
+import { calculatePlanetaryPositions } from "../lib/astro/planets";
+import { calculateAscendant } from "../lib/astro/equalHouses";
+import { DateTime } from "luxon";
+import { generateAurigaPrediction } from "../lib/agents/agentA";
+import { PrivyClient } from "@privy-io/server-auth";
 
 const router = Router();
+
+// Initialize Privy client
+const privyAppId = process.env.PRIVY_APP_ID || "cmgb15wpa00g0la0duq9rzaqw";
+const privyAppSecret = process.env.PRIVY_APP_SECRET;
+
+const privy = privyAppSecret 
+  ? new PrivyClient(privyAppId, privyAppSecret)
+  : null;
+
+// Helper to extract user ID from Privy token
+async function getPrivyUserId(req: Request): Promise<string> {
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader && privy) {
+    const token = authHeader.replace('Bearer ', '');
+    
+    try {
+      const claims = await privy.verifyAuthToken(token);
+      
+      // Extract user ID from Privy claims
+      // Privy user ID format: did:privy:{userId}
+      const privyUserId = claims.userId;
+      
+      // Try to get wallet address or Farcaster FID from Privy user
+      try {
+        const user = await privy.getUser(privyUserId);
+        
+        // Priority 1: Use wallet address
+        if (user.wallet?.address) {
+          console.log(`✅ Using Privy wallet: ${user.wallet.address}`);
+          return user.wallet.address.toLowerCase();
+        }
+        
+        // Priority 2: Use Farcaster FID
+        if (user.farcaster?.fid) {
+          console.log(`✅ Using Privy Farcaster FID: ${user.farcaster.fid}`);
+          return `fid:${user.farcaster.fid}`;
+        }
+        
+        // Priority 3: Use Privy user ID
+        console.log(`✅ Using Privy user ID: ${privyUserId}`);
+        return privyUserId;
+      } catch (error) {
+        console.error('Failed to get Privy user details:', error);
+        // Fallback to Privy user ID
+        console.log(`✅ Using Privy user ID (fallback): ${privyUserId}`);
+        return privyUserId;
+      }
+    } catch (error) {
+      console.error('Failed to verify Privy token:', error);
+    }
+  }
+  
+  // Fallback: Use IP-based ID for testing
+  const ip = req.ip || (req.headers['x-forwarded-for'] as string) || 'unknown';
+  const userId = `demo-${ip}`;
+  console.warn(`⚠️  No Privy auth found, using IP-based ID: ${userId}`);
+  return userId;
+}
 
 // Stylus contract configuration
 const FARCASTER_CONTRACT_ADDRESS = process.env.FARCASTER_CONTRACT_ADDRESS || "0xfbcbb9088301cb94946ad415d7d862a583f6289d";
@@ -39,13 +103,13 @@ function getContract() {
 // Check if user has birth data
 router.get("/check-data", async (req: Request, res: Response) => {
   try {
-    const userId = req.session?.userId || "demo-user"; // For testing
+    const userId = await getPrivyUserId(req);
     
     const user = await db.query.farcasterUsers.findFirst({
       where: eq(farcasterUsers.userId, userId)
     });
 
-    res.json({ hasData: !!user });
+    res.json({ hasData: !!user, userId }); // Include userId for debugging
   } catch (error) {
     console.error("Error checking user data:", error);
     res.status(500).json({ error: "Failed to check user data" });
@@ -55,7 +119,7 @@ router.get("/check-data", async (req: Request, res: Response) => {
 // Save birth data
 router.post("/save-birth-data", async (req: Request, res: Response) => {
   try {
-    const userId = req.session?.userId || "demo-user";
+    const userId = await getPrivyUserId(req);
     const { dob, tob, location, lat, lon } = req.body;
 
     // Validate required fields
@@ -111,12 +175,17 @@ router.post("/save-birth-data", async (req: Request, res: Response) => {
       // Register user on-chain with ZK commitment
       try {
         const contract = getContract();
-        const userAddress = ethers.Wallet.createRandom().address; // In production, use actual user wallet
+        
+        // Use the user's actual wallet address if available
+        const walletAddress = req.headers['x-wallet-address'] as string;
+        const userAddress = walletAddress || ethers.Wallet.createRandom().address;
+        
         const commitmentBytes = ethers.zeroPadValue(ethers.toBeHex(BigInt(`0x${commitment}`)), 32);
         
         const tx = await contract.registerUser(commitmentBytes);
         await tx.wait();
-        console.log(`✅ User registered on-chain with commitment: ${commitment.substring(0, 20)}...`);
+        console.log(`✅ User ${userId} registered on-chain with commitment: ${commitment.substring(0, 20)}...`);
+        console.log(`   Wallet: ${userAddress}`);
       } catch (error) {
         console.error("Failed to register on-chain:", error);
         // Continue anyway - off-chain data is saved
@@ -133,7 +202,7 @@ router.post("/save-birth-data", async (req: Request, res: Response) => {
 // Get daily prediction
 router.get("/daily-prediction", async (req: Request, res: Response) => {
   try {
-    const userId = req.session?.userId || "demo-user";
+    const userId = await getPrivyUserId(req);
     const today = new Date().toISOString().split('T')[0];
 
     // Check if we already have a prediction for today
@@ -192,7 +261,7 @@ router.get("/daily-prediction", async (req: Request, res: Response) => {
 // Rate prediction
 router.post("/rate-prediction", async (req: Request, res: Response) => {
   try {
-    const userId = req.session?.userId || "demo-user";
+    const userId = await getPrivyUserId(req);
     const { rating, date } = req.body;
 
     if (!rating || !date) {
@@ -238,7 +307,7 @@ router.post("/rate-prediction", async (req: Request, res: Response) => {
 // Get user statistics
 router.get("/stats", async (req: Request, res: Response) => {
   try {
-    const userId = req.session?.userId || "demo-user";
+    const userId = await getPrivyUserId(req);
 
     const ratings = await db.query.farcasterRatings.findMany({
       where: eq(farcasterRatings.userId, userId),
@@ -261,59 +330,186 @@ router.get("/stats", async (req: Request, res: Response) => {
   }
 });
 
-// Helper function to generate daily prediction
+// Ask a specific question about the day
+router.post("/ask-question", async (req: Request, res: Response) => {
+  try {
+    const userId = await getPrivyUserId(req);
+    const { question, date } = req.body;
+
+    if (!question) {
+      return res.status(400).json({ error: "Question is required" });
+    }
+
+    // Get user's birth data
+    const user = await db.query.farcasterUsers.findFirst({
+      where: eq(farcasterUsers.userId, userId)
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User data not found" });
+    }
+
+    // Get today's prediction for context
+    const prediction = await db.query.farcasterPredictions.findFirst({
+      where: and(
+        eq(farcasterPredictions.userId, userId),
+        eq(farcasterPredictions.date, date || new Date().toISOString().split('T')[0])
+      )
+    });
+
+    // Generate personalized answer using AI
+    const answer = await generatePersonalizedAnswer(user, prediction, question);
+
+    res.json({ answer });
+  } catch (error) {
+    console.error("Error answering question:", error);
+    res.status(500).json({ error: "Failed to answer question" });
+  }
+});
+
+// Helper function to generate personalized answer
+async function generatePersonalizedAnswer(user: any, prediction: any, question: string): Promise<string> {
+  try {
+    // Parse birth data
+    const birthDate = DateTime.fromISO(user.dob, { zone: 'utc' });
+    const [hours, minutes] = user.tob.split(':').map(Number);
+    const birthDateTime = birthDate.set({ hour: hours, minute: minutes });
+    
+    // Calculate natal chart
+    const { planets: natalPositions, retro: natalRetro } = calculatePlanetaryPositions(birthDateTime);
+    
+    const natalAsc = calculateAscendant(
+      birthDateTime.year,
+      birthDateTime.month,
+      birthDateTime.day,
+      birthDateTime.hour + birthDateTime.minute / 60,
+      user.lat,
+      user.lon
+    );
+    
+    const natalChart = {
+      planets: natalPositions,
+      retro: natalRetro,
+      asc: natalAsc,
+      mc: (natalAsc + 90) % 360,
+    };
+    
+    // Calculate today's transits
+    const now = DateTime.now().setZone('utc');
+    const { planets: transitPositions, retro: transitRetro } = calculatePlanetaryPositions(now);
+    
+    const transitChart = {
+      planets: transitPositions,
+      retro: transitRetro,
+      asc: 0,
+      mc: 0,
+    };
+    
+    // Calculate day score for context
+    const { calculateDayScore } = await import('../lib/astro/scoring');
+    const { score: dayScore, factors } = calculateDayScore(natalChart, transitChart, 1.3);
+    
+    // Use the AI chat function to generate personalized answer
+    const { generateChatResponse } = await import('../lib/agents/llm');
+    
+    const answer = await generateChatResponse(
+      question,
+      {
+        dayScore,
+        transitFactors: factors,
+        predictionSummary: prediction?.prediction || "Today's cosmic energies",
+        targetDate: now.toISODate() || now.toFormat('yyyy-MM-dd'),
+        agentPersonality: "warm, personal, and relatable, speaking directly to the user as 'you' like a trusted friend who knows them well"
+      },
+      [] // No conversation history for now
+    );
+    
+    return answer;
+  } catch (error) {
+    console.error("Error generating personalized answer:", error);
+    
+    // Fallback response
+    return `Based on today's cosmic energies, ${question.toLowerCase().includes('should') ? "trust your intuition on this" : "the stars suggest staying mindful and balanced"}. Your unique birth chart shows ${question.toLowerCase().includes('career') ? "professional" : question.toLowerCase().includes('love') || question.toLowerCase().includes('relationship') ? "relationship" : "personal"} energies are active today. Take things one step at a time and listen to your inner wisdom.`;
+  }
+}
+
+// Helper function to generate daily prediction using AI
 async function generateDailyPrediction(user: any) {
-  // Calculate current planetary transits
-  const transits = calculateTransits(user.dob, user.tob, user.lat, user.lon);
-  
-  // Generate prediction using AI
-  const predictionText = await generatePredictionText(transits, user);
-  
-  // Generate lucky elements
-  const luckyNumber = Math.floor(Math.random() * 99) + 1;
-  const luckyColors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE"];
-  const luckyColor = luckyColors[Math.floor(Math.random() * luckyColors.length)];
-  const moods = ["Energetic", "Calm", "Focused", "Creative", "Social", "Reflective"];
-  const mood = moods[Math.floor(Math.random() * moods.length)];
-
-  return {
-    text: predictionText,
-    luckyNumber,
-    luckyColor,
-    mood
-  };
-}
-
-// Helper function to calculate transits (simplified)
-function calculateTransits(dob: string, tob: string, lat: number, lon: number) {
-  // This is a simplified version - in production, use astronomia library
-  const birthDate = new Date(dob);
-  const today = new Date();
-  const daysSinceBirth = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  return {
-    sunSign: getSunSign(birthDate),
-    moonPhase: getMoonPhase(today),
-    daysSinceBirth
-  };
-}
-
-// Helper function to generate prediction text
-async function generatePredictionText(transits: any, user: any): Promise<string> {
-  // In production, this would call your AI agent
-  // For now, generate contextual predictions based on transits
-  
-  const predictions = [
-    `Today brings excellent energy for ${transits.sunSign}. Focus on communication and new connections. Your natural charisma will shine through in social situations.`,
-    `The cosmic alignment favors introspection for ${transits.sunSign} today. Take time to reflect on your goals and priorities. Trust your intuition.`,
-    `A day of creativity and inspiration awaits ${transits.sunSign}. Express yourself through art, writing, or meaningful conversations. Your ideas will resonate with others.`,
-    `Financial opportunities may present themselves to ${transits.sunSign} today. Stay alert for chances to improve your situation. Trust your judgment.`,
-    `Relationships take center stage for ${transits.sunSign}. Reach out to loved ones and strengthen your bonds. Meaningful connections bring joy.`,
-    `Your professional life gets a boost today, ${transits.sunSign}. Take initiative on projects and showcase your skills. Recognition is on the horizon.`,
-    `Health and wellness are highlighted for ${transits.sunSign}. Focus on self-care and listen to your body's needs. Balance is key.`
-  ];
-
-  return predictions[Math.floor(Math.random() * predictions.length)];
+  try {
+    // Parse birth data
+    const birthDate = DateTime.fromISO(user.dob, { zone: 'utc' });
+    const [hours, minutes] = user.tob.split(':').map(Number);
+    const birthDateTime = birthDate.set({ hour: hours, minute: minutes });
+    
+    // Calculate natal chart (birth positions)
+    const { planets: natalPositions, retro: natalRetro } = calculatePlanetaryPositions(birthDateTime);
+    
+    const natalAsc = calculateAscendant(
+      birthDateTime.year,
+      birthDateTime.month,
+      birthDateTime.day,
+      birthDateTime.hour + birthDateTime.minute / 60,
+      user.lat,
+      user.lon
+    );
+    
+    const natalChart = {
+      planets: natalPositions,
+      retro: natalRetro,
+      asc: natalAsc,
+      mc: (natalAsc + 90) % 360, // Simplified MC calculation
+    };
+    
+    // Calculate today's transits (current planetary positions)
+    const now = DateTime.now().setZone('utc');
+    const { planets: transitPositions, retro: transitRetro } = calculatePlanetaryPositions(now);
+    
+    const transitChart = {
+      planets: transitPositions,
+      retro: transitRetro,
+      asc: 0, // Not needed for transits
+      mc: 0,
+    };
+    
+    // Generate AI prediction using Auriga agent (optimistic personality)
+    const prediction = await generateAurigaPrediction(
+      natalChart,
+      transitChart,
+      "What does today hold for me?",
+      now.toISODate() || now.toFormat('yyyy-MM-dd')
+    );
+    
+    // Generate lucky elements based on planetary positions
+    const luckyNumber = Math.floor((transitPositions.sun % 99) + 1);
+    const luckyColors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE"];
+    const luckyColor = luckyColors[Math.floor(transitPositions.moon / 51.4) % luckyColors.length];
+    const moods = ["Energetic", "Calm", "Focused", "Creative", "Social", "Reflective"];
+    const mood = moods[Math.floor(prediction.dayScore / 17) % moods.length];
+    
+    console.log(`✨ AI Prediction Generated: Score ${prediction.dayScore}/100`);
+    
+    return {
+      text: `${prediction.summary}\n\n${prediction.highlights}`,
+      luckyNumber,
+      luckyColor,
+      mood,
+      dayScore: prediction.dayScore,
+      factors: prediction.factors,
+    };
+  } catch (error) {
+    console.error("Error generating AI prediction:", error);
+    
+    // Fallback to simple prediction if AI fails
+    const sunSign = getSunSign(new Date(user.dob));
+    return {
+      text: `Today brings interesting cosmic energy for ${sunSign}. Stay open to new opportunities and trust your intuition. Focus on what matters most to you.`,
+      luckyNumber: Math.floor(Math.random() * 99) + 1,
+      luckyColor: "#4ECDC4",
+      mood: "Balanced",
+      dayScore: 50,
+      factors: "General astrological influences",
+    };
+  }
 }
 
 // Helper function to get sun sign

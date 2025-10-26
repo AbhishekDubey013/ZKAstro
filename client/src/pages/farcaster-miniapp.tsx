@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Star, Calendar, Clock, MapPin } from "lucide-react";
+import { Sparkles, Star, Calendar, Clock, MapPin, LogOut } from "lucide-react";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface BirthData {
   dob: string;
@@ -23,13 +24,27 @@ interface DailyPrediction {
   mood: string;
 }
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export default function FarcasterMiniapp() {
   const [hasData, setHasData] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [prediction, setPrediction] = useState<DailyPrediction | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [userQuestion, setUserQuestion] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
   const { toast } = useToast();
+  
+  // Privy authentication
+  const { user, authenticated, login, logout, ready, getAccessToken } = usePrivy();
+  
+  // Debug logging
+  console.log('🔍 Privy State:', { ready, authenticated, user: user?.wallet?.address });
 
   const [birthData, setBirthData] = useState<BirthData>({
     dob: "",
@@ -40,13 +55,37 @@ export default function FarcasterMiniapp() {
   });
 
   useEffect(() => {
-    checkUserData();
-  }, []);
+    if (ready && authenticated) {
+      checkUserData();
+    }
+  }, [ready, authenticated]);
+
+  // Helper to get auth headers with Privy token
+  const getAuthHeaders = async () => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+
+    if (authenticated) {
+      try {
+        const token = await getAccessToken();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error("Failed to get access token:", error);
+      }
+    }
+
+    return headers;
+  };
 
   const checkUserData = async () => {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch("/api/farcaster/check-data", {
-        credentials: "include"
+        credentials: "include",
+        headers
       });
       
       if (response.ok) {
@@ -63,9 +102,10 @@ export default function FarcasterMiniapp() {
     setLoading(true);
 
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch("/api/farcaster/save-birth-data", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify(birthData)
       });
@@ -95,8 +135,10 @@ export default function FarcasterMiniapp() {
   const getDailyPrediction = async () => {
     setLoading(true);
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch("/api/farcaster/daily-prediction", {
-        credentials: "include"
+        credentials: "include",
+        headers
       });
 
       if (response.ok) {
@@ -120,9 +162,10 @@ export default function FarcasterMiniapp() {
     setRating(ratingValue);
     
     try {
+      const headers = await getAuthHeaders();
       await fetch("/api/farcaster/rate-prediction", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({ 
           rating: ratingValue,
@@ -139,7 +182,61 @@ export default function FarcasterMiniapp() {
     }
   };
 
-  if (!hasData && !showForm) {
+  const handleAskQuestion = async () => {
+    if (!userQuestion.trim()) return;
+
+    const question = userQuestion.trim();
+    setUserQuestion("");
+    setChatLoading(true);
+
+    // Add user message immediately
+    setChatMessages(prev => [...prev, { role: 'user', content: question }]);
+
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch("/api/farcaster/ask-question", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          question,
+          date: prediction?.date
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
+      } else {
+        throw new Error("Failed to get answer");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to get answer. Please try again.",
+        variant: "destructive"
+      });
+      // Remove the user message if failed
+      setChatMessages(prev => prev.slice(0, -1));
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Show loading while Privy initializes
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <Sparkles className="w-12 h-12 mx-auto mb-4 animate-spin text-violet-600" />
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!authenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-900 p-4">
         <div className="max-w-md mx-auto pt-20">
@@ -149,10 +246,10 @@ export default function FarcasterMiniapp() {
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
               <CardTitle className="text-2xl bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
-                Daily Astrology
+                Cosmic Predictions
               </CardTitle>
               <CardDescription className="text-base">
-                Get personalized predictions based on your birth chart
+                Get personalized daily astrology predictions
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -166,12 +263,67 @@ export default function FarcasterMiniapp() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   🌟 Rate and improve predictions
                 </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  🔐 Privacy-preserving ZK proofs
+                </p>
+              </div>
+              <Button 
+                onClick={login}
+                className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+              >
+                Sign in with Wallet
+              </Button>
+              <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                Connect your wallet or Farcaster account
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasData && !showForm) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-900 p-4">
+        <div className="max-w-md mx-auto pt-20">
+          <Card className="border-violet-200 dark:border-violet-800 shadow-xl">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+              <CardTitle className="text-2xl bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+                Welcome {user?.wallet?.address?.slice(0, 6)}...{user?.wallet?.address?.slice(-4)}!
+              </CardTitle>
+              <CardDescription className="text-base">
+                Let's set up your birth chart
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-violet-50 dark:bg-violet-950/30 rounded-lg p-4 space-y-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  📅 Enter your birth details
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  🔐 Stored securely with ZK proofs
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  🌟 Get personalized predictions
+                </p>
               </div>
               <Button 
                 onClick={() => setShowForm(true)}
                 className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
               >
-                Get Started
+                Enter Birth Details
+              </Button>
+              <Button 
+                onClick={logout}
+                variant="outline"
+                className="w-full"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
               </Button>
             </CardContent>
           </Card>
@@ -365,10 +517,68 @@ export default function FarcasterMiniapp() {
                 )}
               </div>
 
+              {/* Chat Section */}
+              <div className="space-y-3 border-t border-violet-100 dark:border-violet-900 pt-6">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-violet-600" />
+                  Ask something specific about your day
+                </p>
+                
+                {/* Chat Messages */}
+                {chatMessages.length > 0 && (
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {chatMessages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={`p-3 rounded-lg ${
+                          msg.role === 'user'
+                            ? 'bg-violet-100 dark:bg-violet-900/30 ml-8'
+                            : 'bg-purple-50 dark:bg-purple-950/30 mr-8'
+                        }`}
+                      >
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                          {msg.content}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Chat Input */}
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="e.g., Should I have that important conversation today? What about my career?"
+                    value={userQuestion}
+                    onChange={(e) => setUserQuestion(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAskQuestion();
+                      }
+                    }}
+                    className="resize-none"
+                    rows={2}
+                    disabled={chatLoading}
+                  />
+                  <Button
+                    onClick={handleAskQuestion}
+                    disabled={!userQuestion.trim() || chatLoading}
+                    className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+                  >
+                    {chatLoading ? "..." : "Ask"}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Get personalized insights based on your chart and today's transits
+                </p>
+              </div>
+
               <Button 
                 onClick={() => {
                   setPrediction(null);
                   setRating(null);
+                  setChatMessages([]);
+                  setUserQuestion("");
                 }}
                 variant="outline"
                 className="w-full"
