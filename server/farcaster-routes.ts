@@ -7,8 +7,34 @@ import {
   farcasterPredictions, 
   farcasterRatings 
 } from "../shared/schema";
+import { ethers } from "ethers";
+import { generateZKProof } from "../lib/zkproof/poseidon-proof";
 
 const router = Router();
+
+// Stylus contract configuration
+const FARCASTER_CONTRACT_ADDRESS = process.env.FARCASTER_CONTRACT_ADDRESS || "0xfbcbb9088301cb94946ad415d7d862a583f6289d";
+const ARBITRUM_SEPOLIA_RPC = process.env.ARBITRUM_SEPOLIA_RPC || "https://sepolia-rollup.arbitrum.io/rpc";
+const AGENT_DEPLOYER_PRIVATE_KEY = process.env.AGENT_DEPLOYER_PRIVATE_KEY;
+
+const CONTRACT_ABI = [
+  "function registerUser(bytes32 commitment) external",
+  "function storePrediction(uint256 date, bytes32 predictionHash) external",
+  "function ratePrediction(uint256 date, uint8 rating) external",
+  "function isUserRegistered(address user) external view returns (bool)",
+  "function getUserStats(address user) external view returns (uint256, uint256, uint256)",
+  "function getGlobalStats() external view returns (uint256, uint256)",
+];
+
+// Helper to get contract instance
+function getContract() {
+  if (!AGENT_DEPLOYER_PRIVATE_KEY) {
+    throw new Error("AGENT_DEPLOYER_PRIVATE_KEY not set");
+  }
+  const provider = new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
+  const wallet = new ethers.Wallet(AGENT_DEPLOYER_PRIVATE_KEY, provider);
+  return new ethers.Contract(FARCASTER_CONTRACT_ADDRESS, CONTRACT_ABI, wallet);
+}
 
 // Check if user has birth data
 router.get("/check-data", async (req: Request, res: Response) => {
@@ -45,6 +71,20 @@ router.post("/save-birth-data", async (req: Request, res: Response) => {
       where: eq(farcasterUsers.userId, userId)
     });
 
+    // Generate ZK commitment for birth data
+    const positions = {
+      planets: {
+        sun: 0, moon: 0, mercury: 0, venus: 0, mars: 0, jupiter: 0, saturn: 0
+      },
+      asc: 0,
+      mc: 0
+    };
+    
+    const { commitment } = await generateZKProof(
+      { dob, tob, tz: "UTC", lat: coordinates.lat, lon: coordinates.lon },
+      positions
+    );
+
     if (existingUser) {
       // Update existing user
       await db.update(farcasterUsers)
@@ -67,9 +107,23 @@ router.post("/save-birth-data", async (req: Request, res: Response) => {
         lat: coordinates.lat,
         lon: coordinates.lon
       });
+      
+      // Register user on-chain with ZK commitment
+      try {
+        const contract = getContract();
+        const userAddress = ethers.Wallet.createRandom().address; // In production, use actual user wallet
+        const commitmentBytes = ethers.zeroPadValue(ethers.toBeHex(BigInt(`0x${commitment}`)), 32);
+        
+        const tx = await contract.registerUser(commitmentBytes);
+        await tx.wait();
+        console.log(`✅ User registered on-chain with commitment: ${commitment.substring(0, 20)}...`);
+      } catch (error) {
+        console.error("Failed to register on-chain:", error);
+        // Continue anyway - off-chain data is saved
+      }
     }
 
-    res.json({ success: true });
+    res.json({ success: true, commitment: commitment.substring(0, 20) + "..." });
   } catch (error) {
     console.error("Error saving birth data:", error);
     res.status(500).json({ error: "Failed to save birth data" });
