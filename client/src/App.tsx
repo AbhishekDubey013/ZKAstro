@@ -14,6 +14,7 @@ import ChartDetail from "@/pages/chart-detail";
 import RequestDetail from "@/pages/request-detail";
 import Agents from "@/pages/agents";
 import CreateAgent from "@/pages/create-agent";
+import FarcasterMiniapp from "@/pages/farcaster-miniapp";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/request/:id" component={isAuthenticated ? RequestDetail : Landing} />
       <Route path="/agents" component={Agents} />
       <Route path="/create-agent" component={CreateAgent} />
+      <Route path="/farcaster" component={FarcasterMiniapp} />
     </Switch>
   );
 }
