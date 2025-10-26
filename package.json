@@ -22,6 +22,7 @@
     "deploy:stylus:mainnet": "npx tsx contracts/deploy-stylus.ts arbitrum-one"
   },
   "dependencies": {
+    "@farcaster/auth-kit": "^0.8.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -101,6 +102,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@replit/vite-plugin-cartographer": "^0.3.1",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
@@ -120,6 +122,7 @@
     "drizzle-kit": "^0.31.4",
     "esbuild": "^0.25.0",
     "ethers": "^6.15.0",
+    "hardhat": "^2.26.3",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
