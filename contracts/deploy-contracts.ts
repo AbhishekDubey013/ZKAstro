@@ -6,6 +6,11 @@
 import { ethers } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const CHART_REGISTRY_BYTECODE = `
 // This will be compiled bytecode - placeholder for now
@@ -164,18 +169,16 @@ export async function deployWithHardhat() {
   };
 }
 
-// Run if called directly
-if (require.main === module) {
-  deployContracts()
-    .then(() => {
-      console.log('✅ Script completed successfully');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('❌ Deployment failed:', error);
-      process.exit(1);
-    });
-}
-
 export { deployContracts };
+
+// Run if called directly (ES module compatible)
+deployContracts()
+  .then(() => {
+    console.log('✅ Script completed successfully');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('❌ Deployment failed:', error);
+    process.exit(1);
+  });
 

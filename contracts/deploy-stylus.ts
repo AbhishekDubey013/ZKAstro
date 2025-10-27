@@ -11,6 +11,15 @@ import { execSync } from 'child_process';
 import { ethers } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import * as dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load environment variables
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Configuration
 const ARBITRUM_SEPOLIA_RPC = process.env.ARBITRUM_SEPOLIA_RPC || 'https://sepolia-rollup.arbitrum.io/rpc';
@@ -40,7 +49,7 @@ async function buildStylusContract(): Promise<string> {
     // Get the WASM file path
     const wasmPath = path.join(
       __dirname,
-      '../target/wasm32-unknown-unknown/release/chart_registry_stylus.wasm'
+      'target/wasm32-unknown-unknown/release/chart_registry_stylus.wasm'
     );
 
     if (!fs.existsSync(wasmPath)) {
