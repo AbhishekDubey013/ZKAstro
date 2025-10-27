@@ -82,3 +82,8 @@ target/
 Cargo.lock
 *.wasm
 contracts/deployment-*.json
+*.bak
+
+# Deployment artifacts
+deployment-info.json
+deployment.log
