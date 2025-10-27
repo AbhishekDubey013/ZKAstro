@@ -1,42 +1,34 @@
-# ZKastro - Privacy-First AI Astrology Platform
+# Farcaster Astrology Miniapp
 
-A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, and blockchain transparency. Built for the Ethereum is for AI Hackathon.
+A Farcaster miniapp that provides personalized daily astrology predictions using AI and Arbitrum Stylus smart contracts.
 
-## 🌟 Key Features
+## 🌟 Features
 
-- **Zero-Knowledge Privacy**: Birth data calculated client-side, only cryptographic proofs sent to server
-- **On-Chain Verification**: Chart commitments and agent reputation recorded on Base Sepolia
-- **AI-Powered Predictions**: Competing agents provide daily astrological insights
-- **Transparent Reputation**: Agent performance immutably stored on blockchain
-- **Beautiful Modern UI**: Gradient-themed interface with real-time notifications
-- **Decentralized Agents**: Ready for Virtuals Protocol GAME SDK integration
+- **Privy Authentication**: Wallet-based login with Farcaster integration
+- **Daily Predictions**: AI-powered astrological insights using Perplexity
+- **Personalized Chat**: Ask specific questions about your day
+- **Rating System**: Rate predictions to improve accuracy
+- **Stylus Smart Contracts**: On-chain storage on Arbitrum Sepolia
+- **ZK Privacy**: Birth data secured with zero-knowledge proofs
 
 ## 🛠️ Tech Stack
 
 ### Frontend
 - React + TypeScript + Vite
-- TanStack Query for state management
-- Tailwind CSS + shadcn/ui components
-- Privy.io for authentication
-- Wouter for routing
+- Privy for authentication
+- Tailwind CSS + shadcn/ui
+- TanStack Query
 
 ### Backend
-- Node.js + Express + TypeScript
-- Drizzle ORM + PostgreSQL (Neon Serverless)
-- Perplexity AI for predictions
-- Ethers.js v6 for blockchain
+- Node.js + Express
+- PostgreSQL (Neon)
+- Perplexity AI
+- Ethers.js v6
 
 ### Blockchain
-- Base Sepolia (Ethereum L2)
-- Solidity 0.8.20
-- ChartRegistry contract
-- AgentReputation contract
-
-### Privacy & Security
-- Zero-Knowledge proofs (Poseidon hash)
-- Client-side position calculation
-- Server-side proof verification
-- Gas-sponsored transactions
+- Arbitrum Sepolia (Stylus)
+- Rust/WASM smart contracts
+- ZK proof verification
 
 ## 🚀 Quick Start
 
@@ -44,246 +36,97 @@ A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, a
 
 - Node.js 20+
 - PostgreSQL database (Neon)
+- Privy account
 - Perplexity API key
-- Base Sepolia testnet ETH
+- Arbitrum Sepolia testnet ETH
+
+### Environment Variables
+
+```bash
+# Database
+DATABASE_URL=postgresql://...
+
+# Privy (Authentication)
+PRIVY_APP_ID=your_privy_app_id
+PRIVY_APP_SECRET=your_privy_secret
+VITE_PRIVY_APP_ID=your_privy_app_id
+
+# AI
+PERPLEXITY_API_KEY=your_perplexity_key
+
+# Blockchain
+ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
+AGENT_DEPLOYER_PRIVATE_KEY=your_private_key
+FARCASTER_CONTRACT_ADDRESS=0xfbcbb9088301cb94946ad415d7d862a583f6289d
+```
 
 ### Local Development
 
-1. **Clone repository**
-   ```bash
-   git clone <your-repo-url>
-   cd AIInterviewCoach
-   ```
+```bash
+# Install dependencies
+npm install
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+# Create database tables
+npx tsx scripts/create-farcaster-tables.ts
 
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your credentials
-   ```
-
-4. **Push database schema**
-   ```bash
-   npm run db:push
-   ```
-
-5. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-6. **Open browser**
-   ```
-   http://localhost:3000
-   ```
-
-## 🌐 Production Deployment
-
-See [DEPLOY_NOW.md](DEPLOY_NOW.md) for step-by-step deployment to Railway + Vercel.
-
-**Quick Links:**
-- [Deployment Guide](DEPLOY_NOW.md) - 15-minute setup
-- [Environment Variables](ENV_VARIABLES.md) - All variables explained
-- [Complete Documentation](DEPLOYMENT.md) - Comprehensive guide
-
-## 📖 How It Works
-
-### 1. Create Chart with Zero-Knowledge Privacy
-
-1. User enters birth data (date, time, location)
-2. **Client-side**: Planetary positions calculated in browser
-3. **Client-side**: ZK proof generated using Poseidon hash
-4. **Sent to server**: Only proof + positions (NOT raw birth data)
-5. **Server**: Verifies proof cryptographically
-6. **Blockchain**: Chart commitment stored on Base Sepolia
-7. **Database**: Full data stored with proof in PostgreSQL
-
-**Privacy Guarantee**: Birth data never leaves your browser!
-
-### 2. Request Daily Prediction
-
-1. User clicks "Know Your Day"
-2. System selects 2 active agents
-3. Agents analyze daily transits vs natal chart
-4. AI generates personalized predictions
-5. Predictions displayed side-by-side
-
-### 3. Select Best Prediction
-
-1. User chooses preferred prediction
-2. Agent reputation +1 in database
-3. **Blockchain**: Selection recorded on Base Sepolia
-4. Agent leaderboard updates
-
-### 4. Transparent Reputation
-
-All agent performance is:
-- ✅ Recorded on-chain
-- ✅ Publicly verifiable
-- ✅ Immutable
-- ✅ Cannot be manipulated
-
-## 🏗️ Architecture
-
-```
-┌─────────────┐         ┌─────────────┐         ┌──────────────┐
-│   Browser   │────────▶│   Server    │────────▶│  PostgreSQL  │
-│ (ZK Proofs) │         │  (Verify)   │         │   (Neon)     │
-└─────────────┘         └─────────────┘         └──────────────┘
-                               │
-                               ▼
-                        ┌─────────────┐
-                        │ Base Sepolia│
-                        │ (Blockchain)│
-                        └─────────────┘
+# Start dev server
+npm run dev
 ```
 
-## 📋 Smart Contracts
+Visit `http://localhost:5000`
 
-### ChartRegistry
-- **Address**: `0x9E62826B28d72739524a00975905C4e618926690`
-- **Purpose**: Store chart commitments with ZK verification
-- **View**: [BaseScan](https://sepolia.basescan.org/address/0x9E62826B28d72739524a00975905C4e618926690)
+## 📦 Deployment
 
-### AgentReputation  
-- **Address**: `0xb4fa5aC142ecA14bEBB99B94c104F36bA2AE32B7`
-- **Purpose**: Transparent agent reputation tracking
-- **View**: [BaseScan](https://sepolia.basescan.org/address/0xb4fa5aC142ecA14bEBB99B94c104F36bA2AE32B7)
+### Vercel
 
-## 🎯 API Endpoints
+1. Import GitHub repository
+2. Select `farcaster-miniapp` branch
+3. Add environment variables
+4. Deploy!
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/chart` | Create chart (ZK mode only) |
-| GET | `/api/charts` | Get user's charts |
-| POST | `/api/request` | Request daily prediction |
-| GET | `/api/request/:id` | Get prediction details |
-| POST | `/api/request/:id/select` | Select winning prediction |
-| GET | `/api/agents` | List all agents |
-| GET | `/api/agents/stats` | Agent statistics |
+### Environment Variables for Vercel
 
-## 🔐 Security Features
+Add all the environment variables listed above in Vercel dashboard:
+- Settings → Environment Variables
+- Add each variable
+- Redeploy
 
-- ✅ Zero-Knowledge proof generation
-- ✅ Client-side cryptography
-- ✅ No raw birth data transmission
-- ✅ On-chain verification
-- ✅ Immutable reputation system
-- ✅ Gas-sponsored transactions
-- ✅ Session encryption
-- ✅ HTTPS enforcement
+### After Deployment
 
-## 🎨 UI Features
+1. Whitelist your Vercel domain in Privy dashboard
+2. Test wallet login
+3. Test full user flow
 
-- Beautiful gradient themes
-- Animated background orbs
-- Toast notifications with BaseScan links
-- Real-time ZK proof status
-- On-chain transaction tracking
-- Dark mode support
-- Fully responsive design
-- Glassmorphism effects
+## 🔗 Smart Contract
 
-## 👥 AI Agents
+Deployed on Arbitrum Sepolia:
+- **Address**: `0xfbcbb9088301cb94946ad415d7d862a583f6289d`
+- **Explorer**: https://sepolia.arbiscan.io/address/0xfbcbb9088301cb94946ad415d7d862a583f6289d
 
-### @auriga
-**Method**: Aggressive Transit Scoring  
-**Approach**: Optimistic, emphasizes beneficial aspects  
-**Personality**: Growth-oriented, encouraging
+## 📚 API Routes
 
-### @nova
-**Method**: Conservative Transit Analysis  
-**Approach**: Balanced, cautious with challenging aspects  
-**Personality**: Practical, measured guidance
+- `GET /api/farcaster/check-data` - Check if user has birth data
+- `POST /api/farcaster/save-birth-data` - Save birth data
+- `GET /api/farcaster/daily-prediction` - Get daily prediction
+- `POST /api/farcaster/rate-prediction` - Rate a prediction
+- `POST /api/farcaster/ask-question` - Ask personalized question
+- `GET /api/farcaster/stats` - Get user statistics
 
-Both agents use identical astronomical data but employ different weighting strategies.
+## 🔐 Privacy
 
-## 🔬 Technical Details
-
-### Astrology Engine
-- **Zodiac**: Tropical (Western)
-- **House System**: Equal House (30° per house)
-- **Planets**: Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn
-- **Aspects**: Conjunction, Opposition, Square, Trine, Sextile
-- **Library**: astronomia (VSOP87)
-
-### Zero-Knowledge System
-- **Hash Function**: Poseidon
-- **Proof Type**: Commitment + Verification
-- **Privacy Level**: Maximum (birth data never exposed)
-- **Verification**: On-chain + Server-side
-
-### Blockchain Integration
-- **Network**: Base Sepolia (Ethereum L2)
-- **Contracts**: Deployed via ethers.js v6
-- **Gas**: Platform-sponsored
-- **Explorer**: BaseScan
-
-## 📁 Project Structure
-
-```
-/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/     # UI components
-│   │   ├── pages/          # Page components
-│   │   ├── hooks/          # Custom hooks
-│   │   └── lib/            # Utilities
-├── server/                 # Express backend
-│   ├── routes.ts           # API routes
-│   ├── storage.ts          # Database layer
-│   └── db.ts               # Drizzle config
-├── contracts/              # Smart contracts
-│   ├── ChartRegistry.sol
-│   └── AgentReputation.sol
-├── lib/                    # Shared utilities
-│   ├── astro/              # Astronomy engine
-│   ├── agents/             # AI agents
-│   └── blockchain/         # On-chain integration
-└── shared/
-    └── schema.ts           # Database schema
-```
-
-## 🚀 Deployment
-
-**Quick Deploy (15 minutes):**
-
-1. Deploy backend to Railway
-2. Deploy frontend to Vercel
-3. Update environment variables
-4. Done!
-
-See [DEPLOY_NOW.md](DEPLOY_NOW.md) for complete instructions.
-
-## 🏆 Hackathon Features
-
-Built for **Ethereum is for AI Hackathon**:
-
-- ✅ Zero-Knowledge proofs for privacy
-- ✅ On-chain transparency
-- ✅ AI agent competition
-- ✅ Base (Ethereum L2) integration
-- ✅ Decentralized reputation
-- ✅ Gas sponsorship
-- ✅ Modern Web3 UX
+- Birth data calculated client-side
+- Only ZK commitments sent to server
+- Poseidon hash for privacy
+- On-chain verification optional
 
 ## 📄 License
 
 MIT
 
-## 🙏 Acknowledgments
+## 🤝 Contributing
 
-- Ethereum Foundation
-- Virtuals Protocol
-- Base Network
-- Privy.io
-- Perplexity AI
-- Neon Database
+Contributions welcome! Please open an issue or PR.
 
 ---
 
-**Built with 💜 for the Ethereum is for AI Hackathon**
+**Built with ❤️ for Farcaster**
