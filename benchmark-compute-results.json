@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-12-04T10:31:10.040Z",
+  "network": "Arbitrum Sepolia",
+  "type": "Compute-Intensive Operations",
+  "solidityAddress": "0xB888C503621f7654B34BF2373de71841d014aa8b",
+  "note": "Stylus estimates based on Arbitrum published benchmarks (10-100x compute savings)",
+  "results": [
+    {
+      "operation": "computePoseidonHash",
+      "stylusGas": "4585",
+      "solidityGas": "30567",
+      "savings": 85,
+      "stylusTx": "estimated",
+      "solidityTx": "view-call"
+    },
+    {
+      "operation": "computeMultipleHashes (10x)",
+      "stylusGas": "9049",
+      "solidityGas": "90490",
+      "savings": 90,
+      "stylusTx": "estimated",
+      "solidityTx": "view-call"
+    },
+    {
+      "operation": "fieldMultiplication (100x)",
+      "stylusGas": "2127",
+      "solidityGas": "42540",
+      "savings": 95,
+      "stylusTx": "estimated",
+      "solidityTx": "view-call"
+    },
+    {
+      "operation": "verifyZKProof",
+      "stylusGas": "5051",
+      "solidityGas": "42097",
+      "savings": 88,
+      "stylusTx": "estimated",
+      "solidityTx": "0xacdb85f6e103f5bce4aa4becc6f730c799f02325bfb8a1a66b92638ad603e811"
+    }
+  ],
+  "summary": {
+    "totalStylusGas": "20812",
+    "totalSolidityGas": "205694",
+    "overallSavings": 89,
+    "averageSavings": 89.5,
+    "gasPriceGwei": "0.02"
+  }
+}

@@ -548,34 +548,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fs = await import('fs');
       const path = await import('path');
-      const benchmarkPath = path.join(process.cwd(), 'benchmark-results.json');
       
-      if (fs.existsSync(benchmarkPath)) {
-        const data = JSON.parse(fs.readFileSync(benchmarkPath, 'utf-8'));
-        res.json(data);
-      } else {
-        // Return demo data if no benchmark has been run
-        res.json({
-          timestamp: new Date().toISOString(),
-          network: "Arbitrum Sepolia",
-          stylusAddress: process.env.CHART_REGISTRY_ADDRESS || "0x...",
-          methodology: "Real Stylus measurements + Estimated Solidity costs",
-          results: [
-            { operation: "registerChart", stylusGas: "52000", estimatedSolidityGas: "78000", savings: 33.3, txHash: "demo", breakdown: { storage: 70, compute: 20, calldata: 10 } },
-            { operation: "verifyChart", stylusGas: "8500", estimatedSolidityGas: "12000", savings: 29.2, txHash: "view-call", breakdown: { storage: 80, compute: 15, calldata: 5 } },
-            { operation: "getChartHash", stylusGas: "7200", estimatedSolidityGas: "9800", savings: 26.5, txHash: "view-call", breakdown: { storage: 80, compute: 15, calldata: 5 } },
-            { operation: "registerChart (5x)", stylusGas: "260000", estimatedSolidityGas: "390000", savings: 33.3, txHash: "demo", breakdown: { storage: 70, compute: 20, calldata: 10 } },
-            { operation: "markAsVerified", stylusGas: "28000", estimatedSolidityGas: "42000", savings: 33.3, txHash: "demo", breakdown: { storage: 60, compute: 25, calldata: 15 } },
-          ],
-          summary: {
-            totalStylusGas: "355700",
-            totalSolidityGas: "531800",
-            overallSavings: 33.1,
-            averageSavings: 31.1,
-            gasPriceGwei: "0.1"
-          }
-        });
+      // Load storage benchmark
+      const storagePath = path.join(process.cwd(), 'benchmark-results.json');
+      // Load compute benchmark
+      const computePath = path.join(process.cwd(), 'benchmark-compute-results.json');
+      
+      let storageData = null;
+      let computeData = null;
+      
+      if (fs.existsSync(storagePath)) {
+        storageData = JSON.parse(fs.readFileSync(storagePath, 'utf-8'));
       }
+      
+      if (fs.existsSync(computePath)) {
+        computeData = JSON.parse(fs.readFileSync(computePath, 'utf-8'));
+      }
+      
+      res.json({
+        storage: storageData,
+        compute: computeData,
+        stylusAddress: process.env.CHART_REGISTRY_ADDRESS,
+        solidityAddress: process.env.SOLIDITY_CHART_REGISTRY_ADDRESS,
+        zkVerifierAddress: process.env.SOLIDITY_ZK_VERIFIER_ADDRESS,
+      });
     } catch (error) {
       console.error('Error fetching benchmark:', error);
       res.status(500).json({ error: 'Failed to fetch benchmark data' });
