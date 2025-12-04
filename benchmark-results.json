@@ -1,80 +1,58 @@
 {
-  "timestamp": "2025-12-04T07:02:59.557Z",
+  "timestamp": "2025-12-04T10:09:53.351Z",
   "network": "Arbitrum Sepolia",
   "stylusAddress": "0x0e32b7c642469dd02227734a6c8990cea71574bc",
-  "methodology": "Real Stylus measurements + Estimated Solidity costs based on EVM gas patterns",
+  "solidityAddress": "0x5e31DBA1230372343FE08B762172E2da30fA343d",
+  "methodology": "Real transactions on both Stylus and Solidity contracts",
   "results": [
     {
       "operation": "registerChart",
-      "description": "Register a new chart with ZK proof verification flag",
       "stylusGas": "178517",
-      "estimatedSolidityGas": "253216",
-      "savings": 29,
-      "txHash": "0x7655d9ae0591efd1d36e0fc30ab8071917f6846174cd7f99b4c7dc0ca8b19768",
-      "breakdown": {
-        "storage": 70,
-        "compute": 20,
-        "calldata": 10
-      }
+      "solidityGas": "137688",
+      "savings": -29,
+      "stylusTx": "0x1a4a3332e8ff4b286dedf7059527db094241c0ea5a9116eb869564419cf4d89d",
+      "solidityTx": "0x6de45763f8444b9bbc9693528a9fe3f7af73b9b993275fcaee15e4bfb0122d1a"
     },
     {
-      "operation": "verifyChart",
-      "description": "Verify chart hash matches stored commitment",
-      "stylusGas": "70330",
-      "estimatedSolidityGas": "95041",
-      "savings": 26,
-      "txHash": "view-call",
-      "breakdown": {
-        "storage": 80,
-        "compute": 15,
-        "calldata": 5
-      }
+      "operation": "verifyChart (view)",
+      "stylusGas": "70316",
+      "solidityGas": "27765",
+      "savings": -153,
+      "stylusTx": "view-call",
+      "solidityTx": "view-call"
     },
     {
-      "operation": "getChartHash",
-      "description": "Read stored chart commitment hash",
-      "stylusGas": "67340",
-      "estimatedSolidityGas": "91000",
-      "savings": 26,
-      "txHash": "view-call",
-      "breakdown": {
-        "storage": 80,
-        "compute": 15,
-        "calldata": 5
-      }
+      "operation": "getChartHash (view)",
+      "stylusGas": "67325",
+      "solidityGas": "25016",
+      "savings": -169,
+      "stylusTx": "view-call",
+      "solidityTx": "view-call"
     },
     {
-      "operation": "registerChart (5x)",
-      "description": "Batch of 5 chart registrations",
-      "stylusGas": "892645",
-      "estimatedSolidityGas": "1266163",
-      "savings": 29,
-      "txHash": "0x6731255f2b02244731328e4a6c7c3b5e80db46fa669843eadccaa3b9e618527c",
-      "breakdown": {
-        "storage": 70,
-        "compute": 20,
-        "calldata": 10
-      }
+      "operation": "registerChart (5x batch)",
+      "stylusGas": "892633",
+      "solidityGas": "602916",
+      "savings": -48,
+      "stylusTx": "0x4694e70661da540eb052fc6507819be6744e3774c73acfe054836c5571da09f3",
+      "solidityTx": "0x1d5f364676648a0821ac741ffa4889d3df81a81cc417a6cbd6e3c0ff317228c7"
     },
     {
       "operation": "markAsVerified",
-      "description": "Update chart verification status",
       "stylusGas": "86933",
-      "estimatedSolidityGas": "129751",
-      "savings": 33,
-      "txHash": "0x90ec3a33007d866ce700f2c972d9af3ca7f322fc10057d47859cf94de5e593ea",
-      "breakdown": {
-        "storage": 60,
-        "compute": 25,
-        "calldata": 15
-      }
+      "solidityGas": "33775",
+      "savings": -157,
+      "stylusTx": "0x67091b5b54b3e2d277f76a68eae430454958b2eddc9b321ee30d957843f1fa82",
+      "solidityTx": "0xeccb0fe2e8cf1d3e77f22a854053bb2839d98fa1bb4f6b5360179397a83e3f63"
     }
   ],
   "summary": {
-    "totalStylusGas": "1295765",
-    "totalSolidityGas": "1835171",
-    "overallSavings": 29,
-    "averageSavings": 28.6,
-    "gasPriceGwei": "0.020074"
+    "totalStylusGas": "1295724",
+    "totalSolidityGas": "827160",
+    "overallSavings": -56,
+    "averageSavings": -111.2,
+    "maxSavings": -29,
+    "minSavings": -169,
+    "gasPriceGwei": "0.02"
   }
 }
