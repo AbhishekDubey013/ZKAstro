@@ -85,9 +85,9 @@ export default function Dashboard() {
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/8 rounded-full blur-[80px]" />
       </div>
 
-      <div className="container max-w-5xl px-6 py-10 md:py-14 relative z-10">
+      <div className="container max-w-5xl px-4 sm:px-6 py-8 sm:py-10 md:py-14 relative z-10">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10 pb-8 border-b border-border/50">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 mb-8 sm:mb-10 pb-6 sm:pb-8 border-b border-border/50">
           <div className="flex items-center gap-5">
             <Avatar className="h-16 w-16 ring-2 ring-primary/20 ring-offset-2 ring-offset-background shadow-lg">
               <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.email || "User"} />
@@ -169,7 +169,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               <Card 
                 className="animate-fade-up group cursor-pointer hover:border-primary/30 hover:shadow-lg transition-all duration-300" 
                 onClick={() => setShowCreateForm(!showCreateForm)}

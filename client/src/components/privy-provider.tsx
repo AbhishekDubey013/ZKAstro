@@ -11,8 +11,8 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
       config={{
         loginMethods: ['wallet', 'google', 'github', 'email'],
         appearance: {
-          theme: 'dark',
-          accentColor: '#8b5cf6',
+          theme: 'light', // Will adapt to system preference
+          accentColor: '#f97316', // Orange/amber to match our primary
           logo: undefined,
         },
       }}

@@ -27,8 +27,8 @@ export default function Landing() {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 container max-w-6xl mx-auto px-6 py-20 md:py-28 lg:py-36">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <div className="relative z-10 container max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-20 lg:py-28">
+        <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
           {/* Left column - Text */}
           <div className="space-y-8 stagger">
             {/* Badge */}
@@ -38,7 +38,7 @@ export default function Landing() {
             </div>
 
             {/* Headline */}
-            <h1 className="animate-fade-up text-4xl sm:text-5xl md:text-6xl font-serif font-semibold leading-[1.1] tracking-tight" style={{ animationDelay: '0.1s' }}>
+            <h1 className="animate-fade-up text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-semibold leading-[1.1] tracking-tight" style={{ animationDelay: '0.1s' }}>
               Discover what the{" "}
               <span className="gradient-text">stars reveal</span>{" "}
               about your day
@@ -119,8 +119,8 @@ export default function Landing() {
         </div>
 
         {/* Features section */}
-        <div className="mt-24 md:mt-32 pt-16 border-t border-border/50">
-          <div className="grid md:grid-cols-3 gap-8">
+        <div className="mt-16 sm:mt-20 md:mt-24 lg:mt-32 pt-12 sm:pt-16 border-t border-border/50">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             <div className="group p-6 rounded-2xl bg-card/50 border border-border/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Shield className="h-6 w-6 text-primary" />

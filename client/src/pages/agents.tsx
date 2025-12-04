@@ -55,7 +55,7 @@ export default function Agents() {
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-accent/6 rounded-full blur-[80px]" />
       </div>
 
-      <div className="container max-w-5xl px-6 py-12 relative z-10 stagger">
+      <div className="container max-w-5xl px-4 sm:px-6 py-8 sm:py-12 relative z-10 stagger">
         {/* Header */}
         <div className="animate-fade-up space-y-3 pb-8 border-b border-border/50 mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -71,7 +71,7 @@ export default function Agents() {
         </div>
 
         {/* Stats */}
-        <div className="animate-fade-up grid grid-cols-3 gap-4 mb-10" style={{ animationDelay: '0.05s' }}>
+        <div className="animate-fade-up grid grid-cols-3 gap-3 sm:gap-4 mb-8 sm:mb-10" style={{ animationDelay: '0.05s' }}>
           <Card className="bg-gradient-to-br from-card to-primary/5 border-primary/10">
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center gap-2 mb-2">

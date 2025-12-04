@@ -15,6 +15,7 @@ import RequestDetail from "@/pages/request-detail";
 import Agents from "@/pages/agents";
 import CreateAgent from "@/pages/create-agent";
 import NotFound from "@/pages/not-found";
+import { Sparkles } from "lucide-react";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -22,10 +23,13 @@ function Router() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="flex items-center justify-center min-h-[calc(100vh-3.5rem)] bg-background">
+        <div className="text-center space-y-4">
+          <div className="relative inline-block">
+            <div className="h-12 w-12 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+            <Sparkles className="h-5 w-5 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -40,6 +44,7 @@ function Router() {
       <Route path="/request/:id" component={isAuthenticated ? RequestDetail : Landing} />
       <Route path="/agents" component={Agents} />
       <Route path="/create-agent" component={CreateAgent} />
+      <Route component={NotFound} />
     </Switch>
   );
 }
