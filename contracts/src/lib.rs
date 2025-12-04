@@ -267,6 +267,86 @@ impl ChartRegistry {
     }
 
     /// Verify ZK proof on-chain (compute intensive)
+    /// Uses keccak256 for compatibility with JS client
+    pub fn verify_zk_proof_onchain(
+        &self,
+        commitment: B32,
+        proof: B32,
+        nonce: B32,
+        positions_hash: B32,
+    ) -> bool {
+        // Step 1: Compute challenge = keccak256(commitment || positions_hash)
+        let mut challenge_input = [0u8; 64];
+        challenge_input[0..32].copy_from_slice(commitment.as_slice());
+        challenge_input[32..64].copy_from_slice(positions_hash.as_slice());
+        let challenge = keccak256(&challenge_input);
+        
+        // Step 2: Compute expected proof = keccak256(commitment || nonce || challenge)
+        let mut proof_input = [0u8; 96];
+        proof_input[0..32].copy_from_slice(commitment.as_slice());
+        proof_input[32..64].copy_from_slice(nonce.as_slice());
+        proof_input[64..96].copy_from_slice(challenge.as_slice());
+        let expected_proof = keccak256(&proof_input);
+        
+        // Step 3: Verify
+        proof == B32::from_slice(expected_proof.as_slice())
+    }
+
+    /// Register a chart with on-chain ZK proof verification
+    /// This verifies the proof ON-CHAIN before storing
+    pub fn register_chart_with_zk(
+        &mut self,
+        chart_id: String,
+        chart_hash: B32,
+        user: Address,
+        commitment: B32,
+        proof: B32,
+        nonce: B32,
+        positions_hash: B32,
+    ) -> bool {
+        // First verify the ZK proof on-chain
+        let zk_valid = self.verify_zk_proof_onchain(commitment, proof, nonce, positions_hash);
+        
+        if !zk_valid {
+            return false; // ZK proof failed
+        }
+        
+        // Convert chart_id to key
+        let chart_key = string_to_key(&chart_id);
+        
+        // Check if chart already exists
+        if !self.chart_timestamp.get(chart_key).is_zero() {
+            return false;
+        }
+        
+        // Validate inputs
+        if chart_hash == B32::ZERO || user == Address::ZERO {
+            return false;
+        }
+
+        // Store chart hash as two U256 values
+        let (hash_high, hash_low) = b32_to_u256_pair(chart_hash);
+        self.chart_hash_high.insert(chart_key, hash_high);
+        self.chart_hash_low.insert(chart_key, hash_low);
+        
+        // Store user address
+        self.chart_user.insert(chart_key, user);
+        
+        // Store timestamp
+        let ts = block::timestamp();
+        self.chart_timestamp.insert(chart_key, U256::from(ts));
+        
+        // Mark as ZK verified (proof verified on-chain!)
+        self.chart_zk_verified.insert(chart_key, true);
+
+        // Increment total
+        let current = self.total_charts.get();
+        self.total_charts.set(current + U256::from(1));
+
+        true
+    }
+
+    /// Verify ZK proof on-chain (for benchmarking - uses field math)
     pub fn verify_zk_proof(
         &self,
         commitment: B32,

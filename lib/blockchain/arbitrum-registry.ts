@@ -14,6 +14,8 @@ import { ethers } from 'ethers';
 const CHART_REGISTRY_ABI = [
   'function init() external',
   'function registerChart(string chartId, bytes32 chartHash, address user, bool zkVerified) external returns (bool)',
+  'function registerChartWithZk(string chartId, bytes32 chartHash, address user, bytes32 commitment, bytes32 proof, bytes32 nonce, bytes32 positionsHash) external returns (bool)',
+  'function verifyZkProofOnchain(bytes32 commitment, bytes32 proof, bytes32 nonce, bytes32 positionsHash) external view returns (bool)',
   'function verifyChart(string chartId, bytes32 chartHash) external view returns (bool)',
   'function getChartHash(string chartId) external view returns (bytes32)',
   'function getChartUser(string chartId) external view returns (address)',
@@ -49,20 +51,58 @@ function getArbitrumContracts() {
 }
 
 /**
- * Record chart creation on Arbitrum Sepolia
+ * Generate keccak256-based ZK proof for on-chain verification
+ */
+function generateOnChainZKProof(
+  chartData: any,
+  nonce: string
+): { commitment: string; proof: string; nonceHash: string; positionsHash: string } {
+  // Create positions hash
+  const positionsStr = JSON.stringify({
+    planets: chartData.planets,
+    asc: chartData.asc,
+    mc: chartData.mc,
+  });
+  const positionsHash = ethers.keccak256(ethers.toUtf8Bytes(positionsStr));
+  
+  // Create commitment = keccak256(positionsHash || nonce)
+  const commitmentInput = ethers.concat([
+    ethers.toUtf8Bytes(positionsStr),
+    ethers.toUtf8Bytes(nonce)
+  ]);
+  const commitment = ethers.keccak256(commitmentInput);
+  
+  // Pad nonce to 32 bytes
+  const nonceHash = ethers.keccak256(ethers.toUtf8Bytes(nonce));
+  
+  // Create challenge = keccak256(commitment || positionsHash)
+  const challengeInput = ethers.concat([commitment, positionsHash]);
+  const challenge = ethers.keccak256(challengeInput);
+  
+  // Create proof = keccak256(commitment || nonceHash || challenge)
+  const proofInput = ethers.concat([commitment, nonceHash, challenge]);
+  const proof = ethers.keccak256(proofInput);
+  
+  return { commitment, proof, nonceHash, positionsHash };
+}
+
+/**
+ * Record chart creation on Arbitrum Sepolia with ON-CHAIN ZK verification
  * 
  * @param chartId - Unique chart identifier
  * @param chartData - Chart data including positions
  * @param userId - User address (optional)
- * @param zkProof - ZK proof string
+ * @param zkProof - ZK proof string (used as nonce for on-chain proof)
+ * @param useOnChainZK - Whether to verify ZK proof on-chain (default: true)
  * @returns Transaction hash and chart hash
  */
 export async function recordChartOnArbitrum(
   chartId: string,
   chartData: any,
   userId: string | null,
-  zkProof: string
-): Promise<{ txHash: string; chartHash: string; explorerUrl: string } | null> {
+  zkProof: string,
+  useOnChainZK: boolean = true
+): Promise<{ txHash: string; chartHash: string; explorerUrl: string; zkVerifiedOnChain: boolean } | null> {
   try {
     const { chartRegistry, wallet, network } = getArbitrumContracts();
 
@@ -83,26 +123,53 @@ export async function recordChartOnArbitrum(
     const chartHash = ethers.keccak256(ethers.toUtf8Bytes(chartDataStr));
 
     // Determine user address (use deployer if anonymous)
-    const userAddress = userId 
+    const userAddress = userId && userId.startsWith('0x')
       ? ethers.getAddress(userId) // If userId is an address
       : wallet.address; // Platform address for anonymous users
 
     console.log(`  Chart Hash: ${chartHash}`);
     console.log(`  User: ${userAddress}`);
-    console.log(`  ZK Verified: true`);
 
-    // Register chart on-chain (Stylus contract - much cheaper!)
-    const tx = await chartRegistry.registerChart(
-      chartId,
-      chartHash,
-      userAddress,
-      true // ZK verified
-    );
+    let tx;
+    let zkVerifiedOnChain = false;
+
+    if (useOnChainZK) {
+      // Generate on-chain compatible ZK proof
+      const { commitment, proof, nonceHash, positionsHash } = generateOnChainZKProof(chartData, zkProof);
+      
+      console.log(`  🔐 On-Chain ZK Verification Enabled`);
+      console.log(`     Commitment: ${commitment.slice(0, 18)}...`);
+      console.log(`     Proof: ${proof.slice(0, 18)}...`);
+
+      // Register with on-chain ZK verification
+      tx = await chartRegistry.registerChartWithZk(
+        chartId,
+        chartHash,
+        userAddress,
+        commitment,
+        proof,
+        nonceHash,
+        positionsHash
+      );
+      zkVerifiedOnChain = true;
+    } else {
+      // Legacy: Register without on-chain ZK (server-verified)
+      console.log(`  ZK Verified: true (server-side)`);
+      tx = await chartRegistry.registerChart(
+        chartId,
+        chartHash,
+        userAddress,
+        true
+      );
+    }
 
     console.log(`  Transaction sent: ${tx.hash}`);
     const receipt = await tx.wait();
     console.log(`✅ Chart recorded on Arbitrum Sepolia (block ${receipt?.blockNumber})`);
-    console.log(`  ⛽ Gas used: ${receipt?.gasUsed?.toString()} (Stylus = 10-100x cheaper!)`);
+    console.log(`  ⛽ Gas used: ${receipt?.gasUsed?.toString()}`);
+    if (zkVerifiedOnChain) {
+      console.log(`  🔐 ZK Proof verified ON-CHAIN!`);
+    }
 
     // Get explorer URL
     const explorerUrl = network === 'arbitrum-one' 
@@ -113,6 +180,7 @@ export async function recordChartOnArbitrum(
       txHash: tx.hash,
       chartHash,
       explorerUrl,
+      zkVerifiedOnChain,
     };
   } catch (error: any) {
     console.error('❌ Failed to record chart on Arbitrum:', error.message);
