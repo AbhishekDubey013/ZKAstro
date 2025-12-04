@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Star, User, ArrowRight, Sparkles, TrendingUp } from "lucide-react";
+import { LogOut, Star, User, ArrowRight, Sparkles, TrendingUp, Calendar, Clock } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { usePrivy } from "@privy-io/react-auth";
@@ -78,39 +78,36 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] bg-background relative">
-      {/* Subtle background elements */}
+    <div className="min-h-[calc(100vh-3.5rem)] bg-background relative overflow-hidden">
+      {/* Ambient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/3 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/3 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/8 rounded-full blur-[80px]" />
       </div>
 
       <div className="container max-w-5xl px-6 py-10 md:py-14 relative z-10">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10 pb-8 border-b border-border">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14 ring-2 ring-border">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10 pb-8 border-b border-border/50">
+          <div className="flex items-center gap-5">
+            <Avatar className="h-16 w-16 ring-2 ring-primary/20 ring-offset-2 ring-offset-background shadow-lg">
               <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.email || "User"} />
-              <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-semibold text-lg">
                 {getInitials()}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-serif font-semibold text-foreground">
+              <h1 className="text-2xl md:text-3xl font-serif font-semibold text-foreground">
                 {user?.firstName && user?.lastName
-                  ? `${user.firstName} ${user.lastName}`
+                  ? `Welcome, ${user.firstName}`
                   : user?.email?.split('@')[0] || "Welcome back"}
               </h1>
-              <div className="flex items-center gap-3 mt-1">
+              <div className="flex items-center gap-4 mt-1.5">
                 <span className="text-sm text-muted-foreground">{user?.email}</span>
-                {user?.reputation && (
-                  <>
-                    <span className="text-muted-foreground/40">•</span>
-                    <span className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Star className="h-3.5 w-3.5 text-primary" />
-                      {user.reputation} rep
-                    </span>
-                  </>
+                {user?.reputation && user.reputation > 0 && (
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                    <Star className="h-3.5 w-3.5 fill-primary" />
+                    {user.reputation}
+                  </span>
                 )}
               </div>
             </div>
@@ -128,83 +125,123 @@ export default function Dashboard() {
         </div>
 
         {chartsLoading ? (
-          <div className="text-center py-16">
-            <div className="inline-block h-6 w-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
-            <p className="text-muted-foreground">Loading your charts...</p>
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="relative">
+              <div className="h-12 w-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+              <Sparkles className="h-5 w-5 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
+            <p className="text-muted-foreground mt-4">Loading your charts...</p>
           </div>
         ) : hasCharts ? (
-          <div className="stagger-children space-y-8">
+          <div className="stagger space-y-8">
             {/* Main CTA Card */}
-            <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-card via-card to-primary/5">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
+            <Card className="animate-fade-up relative overflow-hidden border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 shadow-xl">
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/10 rounded-full blur-2xl -ml-24 -mb-24" />
+              
               <CardHeader className="relative pb-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-medium tracking-wider uppercase text-primary">
-                    Today's Reading
-                  </span>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-medium text-primary">Today's Reading</span>
+                  </div>
                 </div>
                 <CardTitle className="text-2xl md:text-3xl font-serif">
                   What do the stars have in store?
                 </CardTitle>
-                <CardDescription className="text-base mt-2">
-                  Get your personalized prediction based on current planetary transits.
+                <CardDescription className="text-base text-muted-foreground mt-2">
+                  Get personalized predictions based on current planetary transits and your natal chart.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="relative pt-4">
+              <CardContent className="relative pt-4 pb-6">
                 <Button
                   onClick={handleKnowYourDay}
                   size="lg"
-                  className="h-12 px-8 text-base font-semibold group"
+                  className="h-14 px-10 text-base font-semibold shadow-lg glow-primary group"
                   data-testid="button-know-your-day"
                 >
+                  <Sparkles className="mr-2 h-5 w-5" />
                   Get Today's Prediction
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Quick Actions Grid */}
+            {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Card className="group hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setShowCreateForm(!showCreateForm)}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="p-2 rounded-lg bg-muted">
-                      <User className="h-5 w-5 text-muted-foreground" />
+              <Card 
+                className="animate-fade-up group cursor-pointer hover:border-primary/30 hover:shadow-lg transition-all duration-300" 
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                style={{ animationDelay: '0.1s' }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                        <User className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-1">Update Birth Data</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Refine your natal chart with corrected information
+                        </p>
+                      </div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                    <ArrowRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
-                  <CardTitle className="text-lg font-semibold mt-3">Update Birth Data</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-muted-foreground">
-                    Refine your natal chart with corrected birth information.
-                  </p>
                 </CardContent>
               </Card>
 
-              <Card className="group hover:border-accent/30 transition-colors cursor-pointer" onClick={() => setLocation("/agents")}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="p-2 rounded-lg bg-muted">
-                      <TrendingUp className="h-5 w-5 text-muted-foreground" />
+              <Card 
+                className="animate-fade-up group cursor-pointer hover:border-accent/30 hover:shadow-lg transition-all duration-300" 
+                onClick={() => setLocation("/agents")}
+                style={{ animationDelay: '0.15s' }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center group-hover:bg-accent/10 transition-colors">
+                        <TrendingUp className="h-6 w-6 text-muted-foreground group-hover:text-accent transition-colors" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-1">Agent Leaderboard</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Track which AI makes the best predictions
+                        </p>
+                      </div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-accent transition-colors" />
+                    <ArrowRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-accent group-hover:translate-x-1 transition-all" />
                   </div>
-                  <CardTitle className="text-lg font-semibold mt-3">Agent Leaderboard</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-muted-foreground">
-                    Track which AI agents make the most accurate predictions.
-                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Chart Form Expansion */}
+            {/* Chart stats */}
+            {charts && charts.length > 0 && (
+              <Card className="animate-fade-up bg-muted/30 border-border/50" style={{ animationDelay: '0.2s' }}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-6 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>Chart created {new Date(charts[0].createdAt).toLocaleDateString()}</span>
+                    </div>
+                    {charts[0].onChainTxHash && (
+                      <div className="flex items-center gap-2 text-accent">
+                        <Sparkles className="h-4 w-4" />
+                        <span>Verified on-chain</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Form expansion */}
             {showCreateForm && (
-              <Card className="animate-fade-in">
+              <Card className="animate-scale-in shadow-lg">
                 <CardHeader>
-                  <CardTitle className="font-serif">Update Your Chart</CardTitle>
+                  <CardTitle className="font-serif text-xl">Update Your Chart</CardTitle>
                   <CardDescription>
                     Enter your birth details to generate a new natal chart.
                   </CardDescription>
@@ -217,19 +254,22 @@ export default function Dashboard() {
           </div>
         ) : (
           /* New user flow */
-          <div className="stagger-children">
-            <div className="mb-8">
-              <span className="text-xs font-medium tracking-wider uppercase text-primary">Get Started</span>
-              <h2 className="text-3xl font-serif font-semibold mt-2 mb-3">
+          <div className="stagger">
+            <div className="animate-fade-up mb-8">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-px w-8 bg-primary" />
+                <span className="text-xs font-medium tracking-widest uppercase text-primary">Get Started</span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-serif font-semibold mb-3">
                 Create your natal chart
               </h2>
-              <p className="text-muted-foreground max-w-lg">
+              <p className="text-muted-foreground text-lg max-w-xl">
                 Enter your birth information to generate a Western Equal-house chart. 
                 This forms the basis for all your personalized predictions.
               </p>
             </div>
 
-            <Card>
+            <Card className="animate-fade-up shadow-lg" style={{ animationDelay: '0.1s' }}>
               <CardContent className="pt-6">
                 <ChartCreationForm />
               </CardContent>

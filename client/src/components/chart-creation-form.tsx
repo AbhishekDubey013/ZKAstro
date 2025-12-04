@@ -15,7 +15,7 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Calendar, Clock, MapPin, Navigation, Lock, ArrowRight } from "lucide-react";
+import { Calendar, Clock, MapPin, Navigation, Shield, ArrowRight, Sparkles } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -88,11 +88,6 @@ export default function ChartCreationForm() {
           positions
         );
 
-        toast({
-          title: "Proof generated",
-          description: `${zkProof.commitment.substring(0, 16)}...`,
-        });
-
         const response = await apiRequest("POST", "/api/chart", {
           zkEnabled: true,
           privyUserId: privyUserId,
@@ -119,13 +114,13 @@ export default function ChartCreationForm() {
       queryClient.invalidateQueries({ queryKey: ["/api/charts"] });
       
       toast({
-        title: "Chart created",
+        title: "Chart created successfully",
         description: "Your natal chart is ready",
       });
       
       if (data.onChain?.recorded) {
         toast({
-          title: "Recorded on-chain",
+          title: "Verified on-chain",
           description: (
             <a 
               href={data.onChain.explorer}
@@ -144,7 +139,7 @@ export default function ChartCreationForm() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: "Something went wrong",
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -215,19 +210,22 @@ export default function ChartCreationForm() {
 
   return (
     <div className="space-y-6">
-      {/* Privacy notice */}
-      <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/5 border border-primary/10">
-        <Lock className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">Zero-knowledge privacy</p>
-          <p className="text-xs text-muted-foreground">
+      {/* Privacy banner */}
+      <div className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-accent/10 to-primary/10 border border-accent/20">
+        <div className="p-2 rounded-lg bg-accent/10">
+          <Shield className="h-5 w-5 text-accent" />
+        </div>
+        <div>
+          <p className="font-medium text-foreground mb-0.5">Zero-knowledge privacy</p>
+          <p className="text-sm text-muted-foreground">
             Your birth data is calculated locally and never sent to our servers. Only cryptographic proofs are transmitted.
           </p>
         </div>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Date & Time row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -241,7 +239,7 @@ export default function ChartCreationForm() {
                   <FormControl>
                     <Input
                       type="date"
-                      className="h-11"
+                      className="h-12 text-base"
                       {...field}
                       data-testid="input-dob"
                     />
@@ -263,7 +261,7 @@ export default function ChartCreationForm() {
                   <FormControl>
                     <Input
                       type="time"
-                      className="h-11"
+                      className="h-12 text-base"
                       {...field}
                       data-testid="input-tob"
                     />
@@ -274,6 +272,7 @@ export default function ChartCreationForm() {
             />
           </div>
 
+          {/* Timezone */}
           <FormField
             control={form.control}
             name="tz"
@@ -283,12 +282,12 @@ export default function ChartCreationForm() {
                 <FormControl>
                   <Input
                     placeholder="America/New_York"
-                    className="h-11"
+                    className="h-12 text-base"
                     {...field}
                     data-testid="input-timezone"
                   />
                 </FormControl>
-                <FormDescription className="text-xs">
+                <FormDescription className="text-xs text-muted-foreground">
                   Detected: {systemTimezone}
                 </FormDescription>
                 <FormMessage />
@@ -296,16 +295,20 @@ export default function ChartCreationForm() {
             )}
           />
 
-          <div className="space-y-3">
+          {/* Location section */}
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <FormLabel className="text-sm font-medium">Birth Location</FormLabel>
+              <FormLabel className="text-sm font-medium flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                Birth Location
+              </FormLabel>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={detectLocation}
                 disabled={detectingLocation}
-                className="text-xs h-8"
+                className="h-8 text-xs"
                 data-testid="button-detect-location"
               >
                 <Navigation className="h-3.5 w-3.5 mr-1.5" />
@@ -321,7 +324,7 @@ export default function ChartCreationForm() {
                   <FormControl>
                     <Input
                       placeholder="City, State, Country"
-                      className="h-11"
+                      className="h-12 text-base"
                       {...field}
                       data-testid="input-place-name"
                     />
@@ -331,19 +334,19 @@ export default function ChartCreationForm() {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="lat"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-muted-foreground">Latitude</FormLabel>
+                    <FormLabel className="text-xs text-muted-foreground font-normal">Latitude</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         step="any"
                         placeholder="40.7128"
-                        className="h-10 text-sm"
+                        className="h-10"
                         {...field}
                         data-testid="input-lat"
                       />
@@ -358,13 +361,13 @@ export default function ChartCreationForm() {
                 name="lon"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-muted-foreground">Longitude</FormLabel>
+                    <FormLabel className="text-xs text-muted-foreground font-normal">Longitude</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         step="any"
                         placeholder="-74.0060"
-                        className="h-10 text-sm"
+                        className="h-10"
                         {...field}
                         data-testid="input-lon"
                       />
@@ -376,19 +379,22 @@ export default function ChartCreationForm() {
             </div>
           </div>
 
+          {/* Submit */}
           <Button
             type="submit"
             disabled={createChartMutation.isPending}
-            className="w-full h-12 text-base font-semibold group"
+            size="lg"
+            className="w-full h-14 text-base font-semibold shadow-lg glow-primary group"
             data-testid="button-create-chart"
           >
             {createChartMutation.isPending ? (
               <>
-                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                <span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                 Creating chart...
               </>
             ) : (
               <>
+                <Sparkles className="mr-2 h-5 w-5" />
                 Generate Chart
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </>
