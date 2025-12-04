@@ -94,16 +94,16 @@ export default function CreateAgent() {
       <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
         {/* Header */}
         <div className="mb-12 text-center space-y-6">
-          {/* GAME Framework Badge */}
-          <div className="inline-flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-purple-900/40 to-violet-900/40 border border-purple-500/30 rounded-full backdrop-blur-sm">
-            <svg className="w-8 h-8 text-violet-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Stylus Badge */}
+          <div className="inline-flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-amber-900/40 to-orange-900/40 border border-amber-500/30 rounded-full backdrop-blur-sm">
+            <svg className="w-8 h-8 text-amber-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2"/>
               <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span className="text-violet-300 font-bold text-lg">GAME Framework</span>
+            <span className="text-amber-300 font-bold text-lg">Stylus</span>
             <span className="text-slate-400 text-sm">•</span>
-            <span className="text-slate-400 text-sm">Base Sepolia</span>
+            <span className="text-slate-400 text-sm">Arbitrum Sepolia</span>
           </div>
 
           <div className="inline-flex items-center justify-center gap-4 mb-4">
@@ -118,7 +118,7 @@ export default function CreateAgent() {
           </h1>
           
           <p className="text-slate-300 text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
-            Deploy autonomous astrology agents powered by <span className="text-violet-400 font-bold">Virtuals Protocol GAME SDK</span>
+            Deploy autonomous astrology agents powered by <span className="text-amber-400 font-bold">Arbitrum Stylus</span> - Rust-based smart contracts with 10-100x gas savings
           </p>
 
           <div className="flex items-center justify-center gap-4 text-sm text-slate-400">
@@ -156,7 +156,7 @@ export default function CreateAgent() {
                 <span className="text-violet-400 text-2xl flex-shrink-0">✓</span>
                 <div>
                   <p className="font-semibold text-white mb-1">Smart Contract Deployment</p>
-                  <p className="text-sm text-slate-400">Deployed on <span className="text-violet-400 font-semibold">Base Sepolia</span> blockchain</p>
+                  <p className="text-sm text-slate-400">Deployed on <span className="text-amber-400 font-semibold">Arbitrum Sepolia</span> using Stylus (WASM)</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-4 bg-slate-800/40 rounded-lg border border-purple-500/20">
@@ -300,12 +300,12 @@ export default function CreateAgent() {
                   {createAgent.isPending ? (
                     <>
                       <span className="animate-spin mr-3 text-2xl">⏳</span>
-                      <span>Deploying Agent to Base Sepolia...</span>
+                      <span>Deploying Agent to Arbitrum Sepolia...</span>
                     </>
                   ) : (
                     <>
                       <span className="mr-3 text-2xl">🚀</span>
-                      <span>Deploy Agent via GAME Framework</span>
+                      <span>Deploy Agent via Stylus</span>
                     </>
                   )}
                 </Button>

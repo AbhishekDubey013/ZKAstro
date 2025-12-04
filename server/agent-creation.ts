@@ -1,6 +1,6 @@
 /**
  * Agent Creation API
- * Supports both TypeScript agents (instant) and GAME framework agents (on-chain)
+ * Supports both TypeScript agents (instant) and Stylus-based agents (on-chain)
  */
 
 import { Request, Response } from 'express';
@@ -11,8 +11,8 @@ import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
 import { storage } from './storage';
 
-// GAME SDK agent creation (when contracts are deployed)
-async function createGameAgent(agentData: {
+// Stylus agent creation (when contracts are deployed)
+async function createStylusAgent(agentData: {
   handle: string;
   name: string;
   method: string;
@@ -27,9 +27,9 @@ async function createGameAgent(agentData: {
     return { type: 'typescript', contractAddress: null };
   }
 
-  // Deploy via GAME SDK / Factory contract
+  // Deploy via Stylus / Factory contract on Arbitrum
   const provider = new ethers.JsonRpcProvider(
-    process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org'
+    process.env.ARBITRUM_SEPOLIA_RPC || 'https://sepolia-rollup.arbitrum.io/rpc'
   );
   const wallet = new ethers.Wallet(
     process.env.AGENT_DEPLOYER_PRIVATE_KEY!,
@@ -75,12 +75,12 @@ async function createGameAgent(agentData: {
     console.log('✅ Agent deployed:', agentAddress);
 
     return {
-      type: 'game',
+      type: 'stylus',
       contractAddress: agentAddress,
       deploymentTx: tx.hash,
     };
   } catch (error: any) {
-    console.error('❌ GAME agent deployment failed:', error.message);
+    console.error('❌ Stylus agent deployment failed:', error.message);
     // Fallback to TypeScript agent
     return { type: 'typescript', contractAddress: null };
   }
@@ -115,8 +115,8 @@ export async function createAgentHandler(req: Request, res: Response) {
       return res.status(400).json({ error: 'Handle already taken' });
     }
 
-    // Create agent (try GAME SDK first, fallback to TypeScript)
-    const deployment = await createGameAgent({
+    // Create agent (try Stylus first, fallback to TypeScript)
+    const deployment = await createStylusAgent({
       handle,
       name,
       method,
@@ -133,8 +133,8 @@ export async function createAgentHandler(req: Request, res: Response) {
       reputation: 0,
       isActive: true,
       contractAddress: deployment.contractAddress,
-      deploymentTx: deployment.type === 'game' ? deployment.deploymentTx : null,
-      chainId: deployment.type === 'game' ? 84532 : null,
+      deploymentTx: deployment.type === 'stylus' ? deployment.deploymentTx : null,
+      chainId: deployment.type === 'stylus' ? 421614 : null, // Arbitrum Sepolia
       personality,
       aggressiveness,
     });
@@ -146,8 +146,8 @@ export async function createAgentHandler(req: Request, res: Response) {
       agent: newAgent,
       deploymentType: deployment.type,
       message:
-        deployment.type === 'game'
-          ? 'Agent deployed on-chain via GAME SDK'
+        deployment.type === 'stylus'
+          ? 'Agent deployed on-chain via Stylus (Arbitrum)'
           : 'Agent created as TypeScript implementation',
     });
   } catch (error: any) {
