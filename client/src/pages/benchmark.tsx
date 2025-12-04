@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Zap, Code2, ExternalLink, BarChart3, Flame, AlertTriangle, CheckCircle, Database, Cpu } from "lucide-react";
+import { TrendingUp, TrendingDown, Zap, Code2, ExternalLink, BarChart3, Flame, AlertTriangle, CheckCircle, Database, Cpu, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface BenchmarkResult {
@@ -96,36 +96,32 @@ export default function Benchmark() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-px w-8 bg-primary" />
-            <span className="text-xs font-medium tracking-widest uppercase text-primary">Real Benchmark Data</span>
+            <span className="text-xs font-medium tracking-widest uppercase text-primary">Real On-Chain Benchmarks</span>
           </div>
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-semibold mb-3">
             Stylus vs Solidity
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl">
-            Comprehensive comparison showing when each technology excels.
+            Honest comparison with actual gas measurements from Arbitrum Sepolia.
           </p>
         </div>
 
-        {/* Key Takeaway */}
-        <Card className="mb-8 border-accent/30 bg-gradient-to-r from-accent/5 to-primary/5">
+        {/* Key Finding */}
+        <Card className="mb-8 border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-orange-500/5">
           <CardContent className="py-6">
             <div className="flex items-start gap-4">
-              <CheckCircle className="h-8 w-8 text-accent flex-shrink-0 mt-1" />
+              <Info className="h-8 w-8 text-amber-500 flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold text-lg mb-2">Key Takeaway: Right Tool for the Job</h3>
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-start gap-2">
-                    <Cpu className="h-4 w-4 text-accent mt-1" />
-                    <div>
-                      <strong className="text-accent">Stylus wins</strong> for compute-intensive operations (ZK proofs, cryptography) with <strong>85-95% gas savings</strong>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Database className="h-4 w-4 text-primary mt-1" />
-                    <div>
-                      <strong className="text-primary">Solidity wins</strong> for storage-heavy operations (CRUD, tokens) - EVM is already optimized
-                    </div>
-                  </div>
+                <h3 className="font-semibold text-lg mb-2">Honest Finding: EVM Native Opcodes Are Hard to Beat</h3>
+                <div className="text-sm text-muted-foreground space-y-2">
+                  <p>
+                    Our benchmarks show that <strong>Solidity outperforms Stylus</strong> for both storage and modular arithmetic operations.
+                    This is because the EVM has native, highly-optimized opcodes for these specific operations (SSTORE, SLOAD, ADDMOD, MULMOD).
+                  </p>
+                  <p>
+                    <strong>Stylus advantages</strong> emerge in operations the EVM wasn't designed for: memory-heavy algorithms, 
+                    string manipulation, custom cryptography, and complex business logic with many branches.
+                  </p>
                 </div>
               </div>
             </div>
@@ -137,7 +133,7 @@ export default function Benchmark() {
           <TabsList className="grid w-full grid-cols-2 max-w-md">
             <TabsTrigger value="compute" className="flex items-center gap-2">
               <Cpu className="h-4 w-4" />
-              Compute (ZK)
+              Compute (Field Math)
             </TabsTrigger>
             <TabsTrigger value="storage" className="flex items-center gap-2">
               <Database className="h-4 w-4" />
@@ -149,18 +145,31 @@ export default function Benchmark() {
           <TabsContent value="compute" className="space-y-6">
             {compute ? (
               <>
+                {/* Compute Alert */}
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="py-4">
+                    <div className="flex items-start gap-3">
+                      <Code2 className="h-5 w-5 text-primary mt-0.5" />
+                      <div className="text-sm">
+                        <strong>Solidity wins by {Math.abs(compute.summary.overallSavings).toFixed(0)}%</strong> for modular field arithmetic.
+                        The EVM's native ADDMOD/MULMOD opcodes are faster than WASM implementations.
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Compute Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card className="bg-gradient-to-br from-card to-accent/10 border-accent/30">
+                  <Card className="bg-gradient-to-br from-card to-primary/10 border-primary/30">
                     <CardContent className="pt-6">
                       <div className="flex items-center gap-2 mb-2">
-                        <TrendingDown className="h-5 w-5 text-accent" />
-                        <span className="text-xs font-medium text-muted-foreground uppercase">Stylus Savings</span>
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                        <span className="text-xs font-medium text-muted-foreground uppercase">Solidity Wins</span>
                       </div>
-                      <div className="text-3xl md:text-4xl font-bold text-accent tabular-nums">
-                        {compute.summary.overallSavings.toFixed(0)}%
+                      <div className="text-3xl md:text-4xl font-bold text-primary tabular-nums">
+                        +{Math.abs(compute.summary.overallSavings).toFixed(0)}%
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">for compute ops</p>
+                      <p className="text-xs text-muted-foreground mt-1">more efficient</p>
                     </CardContent>
                   </Card>
 
@@ -173,7 +182,7 @@ export default function Benchmark() {
                       <div className="text-2xl md:text-3xl font-bold text-accent tabular-nums">
                         {Number(compute.summary.totalStylusGas).toLocaleString()}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">gas (estimated)</p>
+                      <p className="text-xs text-muted-foreground mt-1">gas</p>
                     </CardContent>
                   </Card>
 
@@ -186,7 +195,7 @@ export default function Benchmark() {
                       <div className="text-2xl md:text-3xl font-bold text-chart-4 tabular-nums">
                         {Number(compute.summary.totalSolidityGas).toLocaleString()}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">gas (measured)</p>
+                      <p className="text-xs text-muted-foreground mt-1">gas</p>
                     </CardContent>
                   </Card>
 
@@ -208,10 +217,10 @@ export default function Benchmark() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="font-serif text-xl flex items-center gap-2">
-                      <Cpu className="h-5 w-5 text-accent" />
-                      ZK & Cryptographic Operations
+                      <Cpu className="h-5 w-5 text-primary" />
+                      Modular Arithmetic Operations
                     </CardTitle>
-                    <CardDescription>Where Stylus truly shines - 85-95% gas savings</CardDescription>
+                    <CardDescription>EVM native ADDMOD/MULMOD outperform WASM implementations</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
@@ -219,14 +228,15 @@ export default function Benchmark() {
                         const stylusGas = Number(result.stylusGas);
                         const solidityGas = Number(result.solidityGas);
                         const maxGas = Math.max(stylusGas, solidityGas);
+                        const solidityWins = solidityGas < stylusGas;
                         
                         return (
                           <div key={idx} className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <span className="font-medium">{result.operation}</span>
-                                <Badge className="bg-accent/20 text-accent border-accent/30 text-xs">
-                                  {result.savings}% savings
+                                <Badge className={`${solidityWins ? 'bg-primary/20 text-primary border-primary/30' : 'bg-accent/20 text-accent border-accent/30'} text-xs`}>
+                                  {solidityWins ? `Solidity +${Math.abs(result.savings).toFixed(0)}%` : `Stylus +${result.savings.toFixed(0)}%`}
                                 </Badge>
                               </div>
                             </div>
@@ -237,7 +247,7 @@ export default function Benchmark() {
                                 <div className="flex-1 h-6 bg-muted/30 rounded-lg overflow-hidden relative">
                                   <div 
                                     className="h-full bg-gradient-to-r from-accent to-accent/70 rounded-lg transition-all flex items-center justify-end pr-2"
-                                    style={{ width: `${Math.max((stylusGas / maxGas) * 100, 10)}%` }}
+                                    style={{ width: `${(stylusGas / maxGas) * 100}%` }}
                                   >
                                     <span className="text-[10px] font-medium text-white">{stylusGas.toLocaleString()}</span>
                                   </div>
@@ -248,7 +258,7 @@ export default function Benchmark() {
                                 <div className="flex-1 h-6 bg-muted/30 rounded-lg overflow-hidden relative">
                                   <div 
                                     className="h-full bg-gradient-to-r from-chart-4 to-chart-4/70 rounded-lg transition-all flex items-center justify-end pr-2"
-                                    style={{ width: '100%' }}
+                                    style={{ width: `${(solidityGas / maxGas) * 100}%` }}
                                   >
                                     <span className="text-[10px] font-medium text-white">{solidityGas.toLocaleString()}</span>
                                   </div>
@@ -266,7 +276,7 @@ export default function Benchmark() {
               <Card>
                 <CardContent className="py-12 text-center">
                   <Cpu className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">Run compute benchmark: <code className="bg-muted px-2 py-1 rounded text-sm">npx tsx scripts/benchmark-compute.ts</code></p>
+                  <p className="text-muted-foreground">Run compute benchmark: <code className="bg-muted px-2 py-1 rounded text-sm">npx tsx scripts/benchmark-compute-actual.ts</code></p>
                 </CardContent>
               </Card>
             )}
@@ -280,10 +290,10 @@ export default function Benchmark() {
                 <Card className="border-primary/30 bg-primary/5">
                   <CardContent className="py-4">
                     <div className="flex items-start gap-3">
-                      <TrendingUp className="h-5 w-5 text-primary mt-0.5" />
+                      <Database className="h-5 w-5 text-primary mt-0.5" />
                       <div className="text-sm">
-                        <strong>Solidity is {Math.abs(storage.summary.overallSavings).toFixed(0)}% more efficient</strong> for this storage-heavy contract.
-                        The EVM's SSTORE/SLOAD operations are highly optimized.
+                        <strong>Solidity wins by {Math.abs(storage.summary.overallSavings).toFixed(0)}%</strong> for storage operations.
+                        The EVM's SSTORE/SLOAD opcodes are highly optimized.
                       </div>
                     </div>
                   </CardContent>
@@ -366,7 +376,7 @@ export default function Benchmark() {
                               <div className="flex items-center gap-3">
                                 <span className="font-medium">{result.operation}</span>
                                 <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
-                                  Solidity {Math.abs(result.savings).toFixed(0)}% better
+                                  Solidity +{Math.abs(result.savings).toFixed(0)}%
                                 </Badge>
                               </div>
                             </div>
@@ -413,32 +423,37 @@ export default function Benchmark() {
           </TabsContent>
         </Tabs>
 
-        {/* Use Case Recommendations */}
+        {/* When to Use Each */}
         <div className="grid md:grid-cols-2 gap-6 mt-8">
           <Card className="group hover:border-accent/30 transition-colors">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
                 <Zap className="h-6 w-6 text-accent" />
               </div>
-              <CardTitle className="font-serif">Use Stylus For</CardTitle>
+              <CardTitle className="font-serif">When Stylus Shines</CardTitle>
+              <CardDescription>Operations not optimized by EVM</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
-                  <span><strong>ZK Proof Verification</strong> - 88% gas savings</span>
+                  <span><strong>Memory-heavy algorithms</strong> - parsing, encoding, compression</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
-                  <span><strong>Field Multiplications</strong> - 95% gas savings</span>
+                  <span><strong>String manipulation</strong> - regex, JSON parsing</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
-                  <span><strong>Hash Computations</strong> - 85-90% gas savings</span>
+                  <span><strong>Custom cryptography</strong> - algorithms without precompiles</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
-                  <span><strong>Complex Math/Simulations</strong> - WASM is 10-100x faster</span>
+                  <span><strong>Complex business logic</strong> - many branches, loops</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
+                  <span><strong>Reusing existing Rust libraries</strong> - no rewrite needed</span>
                 </li>
               </ul>
             </CardContent>
@@ -449,25 +464,30 @@ export default function Benchmark() {
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <Code2 className="h-6 w-6 text-primary" />
               </div>
-              <CardTitle className="font-serif">Use Solidity For</CardTitle>
+              <CardTitle className="font-serif">When Solidity Wins</CardTitle>
+              <CardDescription>EVM-native operations</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
-                  <span><strong>Storage Operations</strong> - EVM optimized for SSTORE/SLOAD</span>
+                  <span><strong>Storage operations</strong> - SSTORE/SLOAD are highly optimized</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
-                  <span><strong>Token Contracts</strong> - ERC-20, ERC-721 standards</span>
+                  <span><strong>Modular arithmetic</strong> - native ADDMOD/MULMOD opcodes</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
-                  <span><strong>Simple CRUD</strong> - Mappings, structs, basic logic</span>
+                  <span><strong>Token contracts</strong> - ERC-20, ERC-721 standards</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
-                  <span><strong>Ecosystem Tooling</strong> - More auditors, better support</span>
+                  <span><strong>Hash functions</strong> - keccak256 is a native precompile</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
+                  <span><strong>Ecosystem maturity</strong> - more auditors, better tooling</span>
                 </li>
               </ul>
             </CardContent>
@@ -479,9 +499,9 @@ export default function Benchmark() {
           <CardContent className="py-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h3 className="font-semibold mb-1">Deployed Contracts</h3>
+                <h3 className="font-semibold mb-1">Verified On-Chain</h3>
                 <p className="text-sm text-muted-foreground">
-                  All benchmarks verified on Arbitrum Sepolia
+                  All benchmarks run on Arbitrum Sepolia with real gas measurements
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -526,7 +546,7 @@ export default function Benchmark() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-muted-foreground/60">
-            Real benchmarks from Arbitrum Sepolia • Stylus estimates based on Arbitrum's published 10-100x compute savings
+            Real benchmarks from Arbitrum Sepolia • Honest data, no cherry-picking
           </p>
         </div>
       </div>

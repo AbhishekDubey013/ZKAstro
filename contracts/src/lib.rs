@@ -198,4 +198,97 @@ impl ChartRegistry {
     pub fn owner(&self) -> Address {
         self.owner.get()
     }
+
+    // ============================================
+    // COMPUTE-INTENSIVE FUNCTIONS FOR BENCHMARKING
+    // ============================================
+    
+    // BN254 field modulus as constant (no runtime parsing!)
+    const FIELD_MODULUS: U256 = U256::from_limbs([
+        0x30644e72e131a029u64,
+        0xb85045b68181585du64,
+        0x2833e84879b9709bu64,
+        0x0000000000000000u64,
+    ]);
+
+    /// Field addition in BN254 field
+    fn field_add(a: U256, b: U256) -> U256 {
+        a.add_mod(b, Self::FIELD_MODULUS)
+    }
+
+    /// Field multiplication in BN254 field  
+    fn field_mul(a: U256, b: U256) -> U256 {
+        a.mul_mod(b, Self::FIELD_MODULUS)
+    }
+
+    /// Compute Poseidon-like hash (for benchmarking compute operations)
+    pub fn compute_hash(&self, input0: U256, input1: U256, input2: U256) -> B32 {
+        let mut state = input0;
+        
+        // Mix inputs
+        state = Self::field_add(state, input1);
+        state = Self::field_mul(state, state); // Square
+        state = Self::field_add(state, input2);
+        state = Self::field_mul(state, state); // Square
+        
+        // Multiple rounds of mixing (8 rounds like Poseidon)
+        for round in 0..8u64 {
+            state = Self::field_mul(state, state);
+            state = Self::field_mul(state, state);
+            state = Self::field_mul(state, state);
+            state = Self::field_add(state, U256::from(round + 1));
+        }
+        
+        // Convert to bytes32
+        B32::from_slice(&state.to_be_bytes::<32>())
+    }
+
+    /// Compute multiple hashes (pure compute benchmark)
+    pub fn compute_multiple_hashes(&self, iterations: u32) -> B32 {
+        let mut result = B32::ZERO;
+        
+        for i in 0..iterations {
+            let result_u256 = U256::from_be_slice(result.as_slice());
+            result = self.compute_hash(result_u256, U256::from(i), U256::from(iterations));
+        }
+        
+        result
+    }
+
+    /// Field multiplication benchmark
+    pub fn field_mul_benchmark(&self, a: U256, b: U256, iterations: u32) -> U256 {
+        let mut result = a;
+        for i in 0..iterations {
+            result = Self::field_mul(result, b);
+            result = Self::field_mul(result, result);
+            result = Self::field_add(result, U256::from(i));
+        }
+        result
+    }
+
+    /// Verify ZK proof on-chain (compute intensive)
+    pub fn verify_zk_proof(
+        &self,
+        commitment: B32,
+        proof: B32,
+        nonce: U256,
+        public_input0: U256,
+        public_input1: U256,
+        public_input2: U256,
+    ) -> bool {
+        // Step 1: Compute challenge from commitment and public inputs
+        let commitment_u256 = U256::from_be_slice(commitment.as_slice());
+        let challenge = self.compute_hash(
+            Self::field_add(commitment_u256, nonce),
+            Self::field_add(public_input0, public_input1),
+            public_input2
+        );
+        let challenge_u256 = U256::from_be_slice(challenge.as_slice());
+        
+        // Step 2: Compute expected proof
+        let expected_proof = self.compute_hash(commitment_u256, challenge_u256, nonce);
+        
+        // Step 3: Verify
+        proof == expected_proof
+    }
 }
