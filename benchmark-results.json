@@ -1,0 +1,80 @@
+{
+  "timestamp": "2025-12-04T07:02:59.557Z",
+  "network": "Arbitrum Sepolia",
+  "stylusAddress": "0x0e32b7c642469dd02227734a6c8990cea71574bc",
+  "methodology": "Real Stylus measurements + Estimated Solidity costs based on EVM gas patterns",
+  "results": [
+    {
+      "operation": "registerChart",
+      "description": "Register a new chart with ZK proof verification flag",
+      "stylusGas": "178517",
+      "estimatedSolidityGas": "253216",
+      "savings": 29,
+      "txHash": "0x7655d9ae0591efd1d36e0fc30ab8071917f6846174cd7f99b4c7dc0ca8b19768",
+      "breakdown": {
+        "storage": 70,
+        "compute": 20,
+        "calldata": 10
+      }
+    },
+    {
+      "operation": "verifyChart",
+      "description": "Verify chart hash matches stored commitment",
+      "stylusGas": "70330",
+      "estimatedSolidityGas": "95041",
+      "savings": 26,
+      "txHash": "view-call",
+      "breakdown": {
+        "storage": 80,
+        "compute": 15,
+        "calldata": 5
+      }
+    },
+    {
+      "operation": "getChartHash",
+      "description": "Read stored chart commitment hash",
+      "stylusGas": "67340",
+      "estimatedSolidityGas": "91000",
+      "savings": 26,
+      "txHash": "view-call",
+      "breakdown": {
+        "storage": 80,
+        "compute": 15,
+        "calldata": 5
+      }
+    },
+    {
+      "operation": "registerChart (5x)",
+      "description": "Batch of 5 chart registrations",
+      "stylusGas": "892645",
+      "estimatedSolidityGas": "1266163",
+      "savings": 29,
+      "txHash": "0x6731255f2b02244731328e4a6c7c3b5e80db46fa669843eadccaa3b9e618527c",
+      "breakdown": {
+        "storage": 70,
+        "compute": 20,
+        "calldata": 10
+      }
+    },
+    {
+      "operation": "markAsVerified",
+      "description": "Update chart verification status",
+      "stylusGas": "86933",
+      "estimatedSolidityGas": "129751",
+      "savings": 33,
+      "txHash": "0x90ec3a33007d866ce700f2c972d9af3ca7f322fc10057d47859cf94de5e593ea",
+      "breakdown": {
+        "storage": 60,
+        "compute": 25,
+        "calldata": 15
+      }
+    }
+  ],
+  "summary": {
+    "totalStylusGas": "1295765",
+    "totalSolidityGas": "1835171",
+    "overallSavings": 29,
+    "averageSavings": 28.6,
+    "gasPriceGwei": "0.020074"
+  }
+}
