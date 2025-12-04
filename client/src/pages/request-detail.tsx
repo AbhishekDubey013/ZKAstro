@@ -142,7 +142,7 @@ export default function RequestDetail() {
 
   if (isLoading) {
     return (
-      <div className="container max-w-7xl px-4 md:px-6 py-8">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Skeleton className="h-8 w-64 mb-6" />
         <div className="grid lg:grid-cols-2 gap-6">
           {[1, 2].map((i) => (

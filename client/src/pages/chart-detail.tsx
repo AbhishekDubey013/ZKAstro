@@ -90,7 +90,7 @@ export default function ChartDetail() {
 
   if (isLoading) {
     return (
-      <div className="container max-w-4xl px-4 md:px-6 py-8">
+      <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Skeleton className="h-8 w-64 mb-6" />
         <Card>
           <CardHeader>

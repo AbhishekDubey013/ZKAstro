@@ -85,7 +85,7 @@ export default function Dashboard() {
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/8 rounded-full blur-[80px]" />
       </div>
 
-      <div className="container max-w-5xl px-4 sm:px-6 py-8 sm:py-10 md:py-14 relative z-10">
+      <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-14 relative z-10">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 mb-8 sm:mb-10 pb-6 sm:pb-8 border-b border-border/50">
           <div className="flex items-center gap-5">

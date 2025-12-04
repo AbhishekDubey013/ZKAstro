@@ -55,7 +55,7 @@ export default function Agents() {
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-accent/6 rounded-full blur-[80px]" />
       </div>
 
-      <div className="container max-w-5xl px-4 sm:px-6 py-8 sm:py-12 relative z-10 stagger">
+      <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10 stagger">
         {/* Header */}
         <div className="animate-fade-up space-y-3 pb-8 border-b border-border/50 mb-8">
           <div className="flex items-center gap-3 mb-2">

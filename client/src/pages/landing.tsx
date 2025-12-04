@@ -27,10 +27,10 @@ export default function Landing() {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 container max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-20 lg:py-28">
-        <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+      <div className="relative z-10 container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 lg:py-28">
+        <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-20 xl:gap-24 items-center">
           {/* Left column - Text */}
-          <div className="space-y-8 stagger">
+          <div className="space-y-8 stagger max-w-2xl lg:max-w-none">
             {/* Badge */}
             <div className="animate-fade-up inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
               <Star className="h-4 w-4 text-primary" />

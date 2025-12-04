@@ -91,7 +91,7 @@ export default function CreateAgent() {
       
       <NavHeader />
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-5xl relative z-10">
+      <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
         {/* Header */}
         <div className="mb-12 text-center space-y-6">
           {/* GAME Framework Badge */}
