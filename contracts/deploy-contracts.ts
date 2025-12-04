@@ -137,8 +137,10 @@ async function deployContracts() {
 }
 
 // For actual deployment with Hardhat:
+// NOTE: Hardhat removed - using Stylus and ethers.js directly now
 export async function deployWithHardhat() {
-  const { ethers: hardhatEthers } = await import('hardhat');
+  throw new Error('Hardhat deployment removed - use Stylus deployment instead');
+  // const { ethers: hardhatEthers } = await import('hardhat');
   
   console.log('🚀 Deploying with Hardhat\n');
 
