@@ -6,8 +6,9 @@ Go to your Vercel dashboard and add these environment variables:
 
 ### 1. Database
 ```
-DATABASE_URL=postgresql://user:password@host.neon.tech/database?sslmode=require&channel_binding=require
+DATABASE_URL=postgresql://user:password@host.neon.tech/database?sslmode=require
 ```
+**Get from**: [Neon Console](https://console.neon.tech) → Your project → Connection string
 
 ### 2. AI/LLM
 ```
