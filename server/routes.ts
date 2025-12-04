@@ -169,10 +169,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           zkSalt: zkBody.zkSalt,
         });
 
-        // 🔗 RECORD ON-CHAIN: Chart commitment to Base Sepolia
-        // Transparent, immutable proof of chart existence
-        const onChainResult = await import('../lib/blockchain/onchain-registry.js')
-          .then(module => module.recordChartOnChain(
+        // 🔗 RECORD ON-CHAIN: Chart commitment to Arbitrum Sepolia (Stylus)
+        // Using Stylus for 10-100x cheaper gas costs
+        const onChainResult = await import('../lib/blockchain/arbitrum-registry.js')
+          .then(module => module.recordChartOnArbitrum(
             chart.id,
             zkBody.params,
             userId,
@@ -198,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recorded: true,
             txHash: onChainResult.txHash,
             chartHash: onChainResult.chartHash,
-            explorer: `https://sepolia-explorer.base.org/tx/${onChainResult.txHash}`,
+            explorer: onChainResult.explorerUrl || `https://sepolia.arbiscan.io/tx/${onChainResult.txHash}`,
           } : {
             recorded: false,
             reason: 'Contracts not deployed or error occurred',
@@ -378,6 +378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 🔗 RECORD ON-CHAIN: Agent selection for transparent scoring
       // This makes agent reputation immutable and verifiable
+      // Note: Agent reputation uses separate contract (not Stylus yet)
       const userId = (req as any).user?.claims?.sub || null;
       const onChainTxHash = await import('../lib/blockchain/onchain-registry.js')
         .then(module => module.recordAgentSelectionOnChain(
@@ -396,8 +397,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         onChain: onChainTxHash ? {
           recorded: true,
           txHash: onChainTxHash,
-          explorer: `https://sepolia-explorer.base.org/tx/${onChainTxHash}`,
-          message: 'Agent reputation updated on Base Sepolia',
+          explorer: `https://sepolia.arbiscan.io/tx/${onChainTxHash}`,
+          message: 'Agent reputation updated',
         } : {
           recorded: false,
           reason: 'Contracts not deployed or error occurred',

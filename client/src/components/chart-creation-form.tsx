@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Form,
@@ -16,7 +15,7 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Sparkles, Calendar, Clock, MapPin, Navigation } from "lucide-react";
+import { Calendar, Clock, MapPin, Navigation, Lock, ArrowRight } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -36,10 +35,7 @@ export default function ChartCreationForm() {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const { user: privyUser } = usePrivy();
 
-  // Auto-detect system timezone
   const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  
-  // Get Privy user ID (wallet address or email)
   const privyUserId = privyUser?.wallet?.address || privyUser?.email?.address || null;
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -54,7 +50,6 @@ export default function ChartCreationForm() {
     },
   });
 
-  // Auto-fill timezone on mount
   useEffect(() => {
     if (systemTimezone) {
       form.setValue("tz", systemTimezone);
@@ -63,14 +58,12 @@ export default function ChartCreationForm() {
 
   const createChartMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      // ZK MODE: Calculate positions client-side and generate proof
       const { calculateChartClientSide, generateZKProof } = await import('@/lib/astro-client');
       
       try {
-        // 1. Calculate chart positions in the browser (birth data never leaves)
         toast({
-          title: "🔒 Calculating positions locally...",
-          description: "Your birth data stays in your browser",
+          title: "Calculating positions...",
+          description: "Your data stays in your browser",
         });
         
         const positions = await calculateChartClientSide(
@@ -81,10 +74,9 @@ export default function ChartCreationForm() {
           values.lon
         );
 
-        // 2. Generate cryptographic ZK proof using Poseidon hash
         toast({
-          title: "🔐 Generating Zero-Knowledge proof...",
-          description: "Creating cryptographic proof without revealing your data",
+          title: "Generating proof...",
+          description: "Creating cryptographic verification",
         });
         
         const zkProof = await generateZKProof(
@@ -97,19 +89,13 @@ export default function ChartCreationForm() {
         );
 
         toast({
-          title: "✅ ZK Proof Generated!",
-          description: `Commitment: ${zkProof.commitment.substring(0, 20)}...`,
+          title: "Proof generated",
+          description: `${zkProof.commitment.substring(0, 16)}...`,
         });
 
-        // 3. Send ONLY proof + positions to server (no raw birth data!)
-        toast({
-          title: "📡 Sending to server...",
-          description: "Only proof and positions (no birth data!)",
-        });
-        
         const response = await apiRequest("POST", "/api/chart", {
           zkEnabled: true,
-          privyUserId: privyUserId, // Include Privy user ID for chart ownership
+          privyUserId: privyUserId,
           inputsHash: zkProof.commitment,
           zkProof: zkProof.proof,
           zkSalt: zkProof.salt,
@@ -126,52 +112,39 @@ export default function ChartCreationForm() {
         
         return await response.json();
       } catch (error: any) {
-        throw new Error(error.message || "Failed to create chart with ZK proof");
+        throw new Error(error.message || "Failed to create chart");
       }
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/charts"] });
       
-      // Show ZK verification success
       toast({
-        title: "✅ Server Verified ZK Proof!",
-        description: "Your proof was validated without exposing your data",
+        title: "Chart created",
+        description: "Your natal chart is ready",
       });
       
-      // Show on-chain recording if successful
       if (data.onChain?.recorded) {
         toast({
-          title: "⛓️ Recorded on Base Sepolia!",
+          title: "Recorded on-chain",
           description: (
-            <div className="mt-2 space-y-2">
-              <p className="text-sm">Chart commitment stored on blockchain</p>
-              <a 
-                href={`https://sepolia.basescan.org/tx/${data.onChain.txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block text-xs text-blue-500 hover:text-blue-700 underline"
-              >
-                View on BaseScan →
-              </a>
-            </div>
+            <a 
+              href={data.onChain.explorer}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline text-sm"
+            >
+              View transaction →
+            </a>
           ),
-          duration: 10000, // Show for 10 seconds
+          duration: 8000,
         });
       }
-      
-      // Final success message
-      setTimeout(() => {
-        toast({
-          title: "🎉 Chart Created Successfully!",
-          description: "Privacy guaranteed. View your chart details now.",
-        });
-      }, 1000);
       
       setLocation(`/chart/${data.chartId}`);
     },
     onError: (error: any) => {
       toast({
-        title: "Error creating chart",
+        title: "Error",
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -187,7 +160,7 @@ export default function ChartCreationForm() {
     
     if (!navigator.geolocation) {
       toast({
-        title: "Geolocation not supported",
+        title: "Not supported",
         description: "Your browser doesn't support location detection.",
         variant: "destructive",
       });
@@ -202,7 +175,6 @@ export default function ChartCreationForm() {
         form.setValue("lat", latitude);
         form.setValue("lon", longitude);
 
-        // Try to get place name from reverse geocoding
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
@@ -220,20 +192,20 @@ export default function ChartCreationForm() {
             }
           }
         } catch (error) {
-          console.error("Reverse geocoding failed:", error);
+          console.error("Geocoding failed:", error);
         }
 
         toast({
-          title: "Location detected!",
-          description: `Latitude: ${latitude.toFixed(4)}, Longitude: ${longitude.toFixed(4)}`,
+          title: "Location found",
+          description: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
         });
         
         setDetectingLocation(false);
       },
       (error) => {
         toast({
-          title: "Location detection failed",
-          description: error.message || "Please enter your location manually.",
+          title: "Detection failed",
+          description: "Please enter location manually.",
           variant: "destructive",
         });
         setDetectingLocation(false);
@@ -242,32 +214,34 @@ export default function ChartCreationForm() {
   };
 
   return (
-    <Card className="border-violet-200 dark:border-violet-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm shadow-xl">
-      <CardHeader className="border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-violet-50/50 via-blue-50/50 to-teal-50/50 dark:from-violet-950/30 dark:via-blue-950/30 dark:to-teal-950/30">
-        <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl text-gray-900 dark:text-gray-100">
-          <Sparkles className="h-6 w-6 text-violet-600 dark:text-violet-400" />
-          Enter Your Birth Information
-        </CardTitle>
-        <CardDescription className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-          🔐 <span className="font-semibold text-violet-600 dark:text-violet-400">Zero-Knowledge Privacy Active</span> - Your birth data is calculated in your browser and never sent to our servers. Only cryptographic proofs are transmitted.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-6">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+    <div className="space-y-6">
+      {/* Privacy notice */}
+      <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/5 border border-primary/10">
+        <Lock className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">Zero-knowledge privacy</p>
+          <p className="text-xs text-muted-foreground">
+            Your birth data is calculated locally and never sent to our servers. Only cryptographic proofs are transmitted.
+          </p>
+        </div>
+      </div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="dob"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                    <Calendar className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                  <FormLabel className="text-sm font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
                     Date of Birth
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="date"
-                      className="h-11 border-violet-200 dark:border-violet-800"
+                      className="h-11"
                       {...field}
                       data-testid="input-dob"
                     />
@@ -282,14 +256,14 @@ export default function ChartCreationForm() {
               name="tob"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                    <Clock className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                  <FormLabel className="text-sm font-medium flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                     Time of Birth
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="time"
-                      className="h-11 border-violet-200 dark:border-violet-800"
+                      className="h-11"
                       {...field}
                       data-testid="input-tob"
                     />
@@ -298,89 +272,45 @@ export default function ChartCreationForm() {
                 </FormItem>
               )}
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="tz"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-700 dark:text-gray-300">Timezone</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="America/New_York"
-                      className="h-11 border-violet-200 dark:border-violet-800"
-                      {...field}
-                      data-testid="input-timezone"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    Auto-detected: {systemTimezone}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="tz"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium">Timezone</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="America/New_York"
+                    className="h-11"
+                    {...field}
+                    data-testid="input-timezone"
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  Detected: {systemTimezone}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <FormLabel className="text-gray-700 dark:text-gray-300">Location</FormLabel>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={detectLocation}
-                  disabled={detectingLocation}
-                  className="border-violet-300 dark:border-violet-700"
-                  data-testid="button-detect-location"
-                >
-                  <Navigation className="h-4 w-4 mr-2" />
-                  {detectingLocation ? "Detecting..." : "Auto-Detect Location"}
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="lat"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-700 dark:text-gray-300">Latitude</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="any"
-                          placeholder="40.7128"
-                          className="h-11 border-violet-200 dark:border-violet-800"
-                          {...field}
-                          data-testid="input-lat"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="lon"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-700 dark:text-gray-300">Longitude</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="any"
-                          placeholder="-74.0060"
-                          className="h-11 border-violet-200 dark:border-violet-800"
-                          {...field}
-                          data-testid="input-lon"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <FormLabel className="text-sm font-medium">Birth Location</FormLabel>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={detectLocation}
+                disabled={detectingLocation}
+                className="text-xs h-8"
+                data-testid="button-detect-location"
+              >
+                <Navigation className="h-3.5 w-3.5 mr-1.5" />
+                {detectingLocation ? "Detecting..." : "Use current location"}
+              </Button>
             </div>
 
             <FormField
@@ -388,14 +318,10 @@ export default function ChartCreationForm() {
               name="placeName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                    <MapPin className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    Place Name
-                  </FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="New York, NY, USA"
-                      className="h-11 border-violet-200 dark:border-violet-800"
+                      placeholder="City, State, Country"
+                      className="h-11"
                       {...field}
                       data-testid="input-place-name"
                     />
@@ -405,18 +331,71 @@ export default function ChartCreationForm() {
               )}
             />
 
-            <Button
-              type="submit"
-              disabled={createChartMutation.isPending}
-              className="w-full h-12 bg-gradient-to-r from-violet-600 to-teal-600 hover:from-violet-700 hover:to-teal-700 text-white font-semibold"
-              data-testid="button-create-chart"
-            >
-              <Sparkles className="h-5 w-5 mr-2" />
-              {createChartMutation.isPending ? "Creating Chart..." : "Generate My Chart"}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="lat"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-muted-foreground">Latitude</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="40.7128"
+                        className="h-10 text-sm"
+                        {...field}
+                        data-testid="input-lat"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lon"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-muted-foreground">Longitude</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="-74.0060"
+                        className="h-10 text-sm"
+                        {...field}
+                        data-testid="input-lon"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={createChartMutation.isPending}
+            className="w-full h-12 text-base font-semibold group"
+            data-testid="button-create-chart"
+          >
+            {createChartMutation.isPending ? (
+              <>
+                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                Creating chart...
+              </>
+            ) : (
+              <>
+                Generate Chart
+                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </>
+            )}
+          </Button>
+        </form>
+      </Form>
+    </div>
   );
 }

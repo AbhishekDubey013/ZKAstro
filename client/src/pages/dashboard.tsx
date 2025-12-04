@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Plus, Star, User, Calendar, Sparkles } from "lucide-react";
+import { LogOut, Star, User, ArrowRight, Sparkles, TrendingUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { usePrivy } from "@privy-io/react-auth";
@@ -16,10 +16,8 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  // Get Privy user ID (wallet address or email)
   const privyUserId = privyUser?.wallet?.address || privyUser?.email?.address || null;
 
-  // Fetch user's charts with Privy user ID for filtering
   const { data: charts, isLoading: chartsLoading } = useQuery<Chart[]>({
     queryKey: ["/api/charts", privyUserId],
     queryFn: async () => {
@@ -30,7 +28,7 @@ export default function Dashboard() {
       if (!response.ok) throw new Error("Failed to fetch charts");
       return response.json();
     },
-    enabled: !!user && !!privyUserId, // Only fetch if user is authenticated and has Privy ID
+    enabled: !!user && !!privyUserId,
     retry: false,
     refetchInterval: false,
     refetchOnWindowFocus: false,
@@ -80,168 +78,163 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] bg-gradient-to-br from-violet-50 via-blue-50 to-teal-50 dark:from-violet-950/20 dark:via-blue-950/20 dark:to-teal-950/20 relative overflow-hidden">
-      {/* Animated background orbs */}
+    <div className="min-h-[calc(100vh-3.5rem)] bg-background relative">
+      {/* Subtle background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-20 w-96 h-96 bg-gradient-to-br from-violet-400/20 to-purple-400/20 dark:from-violet-500/10 dark:to-purple-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 left-20 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-teal-400/20 dark:from-blue-500/10 dark:to-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/3 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/3 rounded-full blur-3xl" />
       </div>
-      
-      <div className="container max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
-        {/* User Profile Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+
+      <div className="container max-w-5xl px-6 py-10 md:py-14 relative z-10">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10 pb-8 border-b border-border">
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 border-2 border-violet-300 dark:border-violet-700">
+            <Avatar className="h-14 w-14 ring-2 ring-border">
               <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.email || "User"} />
-              <AvatarFallback className="bg-gradient-to-br from-violet-500 to-teal-500 text-white text-xl">
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
                 {getInitials()}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+              <h1 className="text-2xl font-serif font-semibold text-foreground">
                 {user?.firstName && user?.lastName
                   ? `${user.firstName} ${user.lastName}`
-                  : user?.email || "Welcome"}
+                  : user?.email?.split('@')[0] || "Welcome back"}
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {user?.email}
-              </p>
-              <div className="flex items-center gap-2 mt-1">
-                <Star className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {user?.reputation || 0} reputation
-                </span>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-sm text-muted-foreground">{user?.email}</span>
+                {user?.reputation && (
+                  <>
+                    <span className="text-muted-foreground/40">•</span>
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 text-primary" />
+                      {user.reputation} rep
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
           <Button
-            variant="outline"
+            variant="ghost"
+            size="sm"
             onClick={handleLogout}
-            className="border-gray-300 dark:border-gray-700"
+            className="text-muted-foreground hover:text-foreground"
             data-testid="button-logout"
           >
             <LogOut className="h-4 w-4 mr-2" />
-            Logout
+            Sign out
           </Button>
         </div>
 
         {chartsLoading ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-400">Loading your charts...</p>
+          <div className="text-center py-16">
+            <div className="inline-block h-6 w-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
+            <p className="text-muted-foreground">Loading your charts...</p>
           </div>
         ) : hasCharts ? (
-          <>
-            {/* Hero CTA - Know Your Day */}
-            <Card className="border-violet-400/50 dark:border-violet-600/50 bg-gradient-to-br from-violet-100 via-blue-100 to-teal-100 dark:from-violet-900/40 dark:via-blue-900/40 dark:to-teal-900/40 mb-6 sm:mb-8 shadow-2xl hover:shadow-violet-500/30 transition-all duration-300 backdrop-blur animate-glow">
-              <CardHeader className="text-center pb-3 sm:pb-4 px-4 sm:px-6">
-                <div className="inline-flex items-center justify-center gap-2 mb-4">
-                  <Sparkles className="h-8 w-8 text-violet-500 dark:text-violet-400 animate-pulse" />
-                  <Sparkles className="h-6 w-6 text-blue-500 dark:text-blue-400 animate-pulse" style={{ animationDelay: '0.5s' }} />
-                  <Sparkles className="h-8 w-8 text-teal-500 dark:text-teal-400 animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="stagger-children space-y-8">
+            {/* Main CTA Card */}
+            <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-card via-card to-primary/5">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
+              <CardHeader className="relative pb-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium tracking-wider uppercase text-primary">
+                    Today's Reading
+                  </span>
                 </div>
-                <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-violet-600 via-blue-600 to-teal-600 dark:from-violet-400 dark:via-blue-400 dark:to-teal-400 bg-clip-text text-transparent leading-tight animate-gradient-x">
-                  Ready to discover your cosmic forecast?
+                <CardTitle className="text-2xl md:text-3xl font-serif">
+                  What do the stars have in store?
                 </CardTitle>
-                <CardDescription className="text-base sm:text-lg text-gray-700 dark:text-gray-300 mt-3 px-2 font-medium">
-                  Get AI-powered predictions for today based on your natal chart
+                <CardDescription className="text-base mt-2">
+                  Get your personalized prediction based on current planetary transits.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="text-center pb-6 sm:pb-8 px-4">
+              <CardContent className="relative pt-4">
                 <Button
                   onClick={handleKnowYourDay}
                   size="lg"
-                  className="h-14 sm:h-16 px-8 sm:px-12 text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-600 via-blue-600 to-teal-600 hover:from-violet-700 hover:via-blue-700 hover:to-teal-700 text-white shadow-2xl hover:shadow-violet-500/50 transition-all duration-300 hover:scale-110 w-full sm:w-auto border-0"
+                  className="h-12 px-8 text-base font-semibold group"
                   data-testid="button-know-your-day"
                 >
-                  <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 mr-2 sm:mr-3 animate-spin flex-shrink-0" style={{ animationDuration: '3s' }} />
-                  <span className="whitespace-nowrap">Know Your Day</span>
-                  <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 ml-2 sm:ml-3 animate-spin flex-shrink-0" style={{ animationDuration: '3s', animationDirection: 'reverse' }} />
+                  Get Today's Prediction
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </Button>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-3 sm:mt-4">
-                  ✨ Using your most recent chart
-                </p>
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              <Card className="border-violet-300/50 dark:border-violet-700/50 bg-gradient-to-br from-white/80 to-violet-100/80 dark:from-gray-900/80 dark:to-violet-950/40 backdrop-blur hover:scale-[1.02] transition-all duration-300 hover:shadow-lg hover:shadow-violet-500/20">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2 text-gray-900 dark:text-gray-100 font-bold">
-                    <User className="h-6 w-6 text-violet-600 dark:text-violet-400" />
-                    Update Your Chart
-                  </CardTitle>
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Card className="group hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setShowCreateForm(!showCreateForm)}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                  </div>
+                  <CardTitle className="text-lg font-semibold mt-3">Update Birth Data</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Update your birth information if needed
+                <CardContent className="pt-0">
+                  <p className="text-sm text-muted-foreground">
+                    Refine your natal chart with corrected birth information.
                   </p>
-                  <Button
-                    onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="w-full bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
-                    data-testid="button-update-chart"
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    {showCreateForm ? "Hide Form" : "Update Chart"}
-                  </Button>
                 </CardContent>
               </Card>
 
-              <Card className="border-teal-300/50 dark:border-teal-700/50 bg-gradient-to-br from-white/80 to-teal-100/80 dark:from-gray-900/80 dark:to-teal-950/40 backdrop-blur hover:scale-[1.02] transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/20">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2 text-gray-900 dark:text-gray-100 font-bold">
-                    <Star className="h-6 w-6 text-teal-600 dark:text-teal-400" />
-                    Agent Observatory
-                  </CardTitle>
+              <Card className="group hover:border-accent/30 transition-colors cursor-pointer" onClick={() => setLocation("/agents")}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-accent transition-colors" />
+                  </div>
+                  <CardTitle className="text-lg font-semibold mt-3">Agent Leaderboard</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    View AI agent performance and prediction accuracy
+                <CardContent className="pt-0">
+                  <p className="text-sm text-muted-foreground">
+                    Track which AI agents make the most accurate predictions.
                   </p>
-                  <Button
-                    onClick={() => setLocation("/agents")}
-                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
-                    data-testid="button-view-agents"
-                  >
-                    View Leaderboard
-                  </Button>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Conditional Chart Creation Form */}
+            {/* Chart Form Expansion */}
             {showCreateForm && (
-              <div className="mb-8">
-                <Card className="border-gray-200 dark:border-gray-800">
-                  <CardHeader>
-                    <CardTitle className="text-xl text-gray-900 dark:text-gray-100">
-                      Update Your Natal Chart
-                    </CardTitle>
-                    <CardDescription>
-                      Update your birth information to regenerate your chart
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartCreationForm />
-                  </CardContent>
-                </Card>
-              </div>
+              <Card className="animate-fade-in">
+                <CardHeader>
+                  <CardTitle className="font-serif">Update Your Chart</CardTitle>
+                  <CardDescription>
+                    Enter your birth details to generate a new natal chart.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartCreationForm />
+                </CardContent>
+              </Card>
             )}
-          </>
+          </div>
         ) : (
-          <>
-            {/* New User - Show Chart Creation Form */}
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                Create Your First Natal Chart
+          /* New user flow */
+          <div className="stagger-children">
+            <div className="mb-8">
+              <span className="text-xs font-medium tracking-wider uppercase text-primary">Get Started</span>
+              <h2 className="text-3xl font-serif font-semibold mt-2 mb-3">
+                Create your natal chart
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Enter your birth information to generate your Western Equal-house chart and receive personalized daily predictions
+              <p className="text-muted-foreground max-w-lg">
+                Enter your birth information to generate a Western Equal-house chart. 
+                This forms the basis for all your personalized predictions.
               </p>
             </div>
 
-            <ChartCreationForm />
-          </>
+            <Card>
+              <CardContent className="pt-6">
+                <ChartCreationForm />
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>
