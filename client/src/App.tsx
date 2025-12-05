@@ -14,7 +14,6 @@ import ChartDetail from "@/pages/chart-detail";
 import RequestDetail from "@/pages/request-detail";
 import Agents from "@/pages/agents";
 import CreateAgent from "@/pages/create-agent";
-import Benchmark from "@/pages/benchmark";
 import NotFound from "@/pages/not-found";
 import { Sparkles } from "lucide-react";
 
@@ -45,7 +44,6 @@ function Router() {
       <Route path="/request/:id" component={isAuthenticated ? RequestDetail : Landing} />
       <Route path="/agents" component={Agents} />
       <Route path="/create-agent" component={CreateAgent} />
-      <Route path="/benchmark" component={Benchmark} />
       <Route component={NotFound} />
     </Switch>
   );

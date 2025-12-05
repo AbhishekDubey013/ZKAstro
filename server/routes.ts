@@ -543,41 +543,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/agents/create', createAgentHandler);
   app.get('/api/agents/creation-stats', getAgentCreationStats);
 
-  // Benchmark results endpoint
-  app.get('/api/benchmark', async (req, res) => {
-    try {
-      const fs = await import('fs');
-      const path = await import('path');
-      
-      // Load storage benchmark
-      const storagePath = path.join(process.cwd(), 'benchmark-results.json');
-      // Load compute benchmark
-      const computePath = path.join(process.cwd(), 'benchmark-compute-results.json');
-      
-      let storageData = null;
-      let computeData = null;
-      
-      if (fs.existsSync(storagePath)) {
-        storageData = JSON.parse(fs.readFileSync(storagePath, 'utf-8'));
-      }
-      
-      if (fs.existsSync(computePath)) {
-        computeData = JSON.parse(fs.readFileSync(computePath, 'utf-8'));
-      }
-      
-      res.json({
-        storage: storageData,
-        compute: computeData,
-        stylusAddress: process.env.CHART_REGISTRY_ADDRESS,
-        solidityAddress: process.env.SOLIDITY_CHART_REGISTRY_ADDRESS,
-        zkVerifierAddress: process.env.SOLIDITY_ZK_VERIFIER_ADDRESS,
-      });
-    } catch (error) {
-      console.error('Error fetching benchmark:', error);
-      res.status(500).json({ error: 'Failed to fetch benchmark data' });
-    }
-  });
-
   const httpServer = createServer(app);
   return httpServer;
 }

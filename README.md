@@ -5,11 +5,11 @@ A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, a
 ## 🌟 Key Features
 
 - **Zero-Knowledge Privacy**: Birth data calculated client-side, only cryptographic proofs sent to server
-- **On-Chain Verification**: Chart commitments and agent reputation recorded on Base Sepolia
+- **On-Chain Verification**: Chart commitments recorded on Arbitrum Sepolia using Stylus
 - **AI-Powered Predictions**: Competing agents provide daily astrological insights
 - **Transparent Reputation**: Agent performance immutably stored on blockchain
 - **Beautiful Modern UI**: Gradient-themed interface with real-time notifications
-- **Decentralized Agents**: Ready for Virtuals Protocol GAME SDK integration
+- **Stylus Smart Contracts**: Rust-based contracts with on-chain ZK verification
 
 ## 🛠️ Tech Stack
 
@@ -27,10 +27,9 @@ A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, a
 - Ethers.js v6 for blockchain
 
 ### Blockchain
-- Base Sepolia (Ethereum L2)
-- Solidity 0.8.20
-- ChartRegistry contract
-- AgentReputation contract
+- Arbitrum Sepolia (Ethereum L2)
+- Stylus (Rust/WASM smart contracts)
+- ChartRegistry contract with on-chain ZK verification
 
 ### Privacy & Security
 - Zero-Knowledge proofs (Poseidon hash)
@@ -45,7 +44,7 @@ A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, a
 - Node.js 20+
 - PostgreSQL database (Neon)
 - Perplexity API key
-- Base Sepolia testnet ETH
+- Arbitrum Sepolia testnet ETH
 
 ### Local Development
 
@@ -83,12 +82,7 @@ A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, a
 
 ## 🌐 Production Deployment
 
-See [DEPLOY_NOW.md](DEPLOY_NOW.md) for step-by-step deployment to Railway + Vercel.
-
-**Quick Links:**
-- [Deployment Guide](DEPLOY_NOW.md) - 15-minute setup
-- [Environment Variables](ENV_VARIABLES.md) - All variables explained
-- [Complete Documentation](DEPLOYMENT.md) - Comprehensive guide
+Deploy backend to Railway/Vercel and frontend to Vercel. See [ENV_VARIABLES.md](ENV_VARIABLES.md) for required environment variables.
 
 ## 📖 How It Works
 
@@ -99,7 +93,7 @@ See [DEPLOY_NOW.md](DEPLOY_NOW.md) for step-by-step deployment to Railway + Verc
 3. **Client-side**: ZK proof generated using Poseidon hash
 4. **Sent to server**: Only proof + positions (NOT raw birth data)
 5. **Server**: Verifies proof cryptographically
-6. **Blockchain**: Chart commitment stored on Base Sepolia
+6. **Blockchain**: Chart commitment stored on Arbitrum Sepolia (Stylus)
 7. **Database**: Full data stored with proof in PostgreSQL
 
 **Privacy Guarantee**: Birth data never leaves your browser!
@@ -116,7 +110,7 @@ See [DEPLOY_NOW.md](DEPLOY_NOW.md) for step-by-step deployment to Railway + Verc
 
 1. User chooses preferred prediction
 2. Agent reputation +1 in database
-3. **Blockchain**: Selection recorded on Base Sepolia
+3. **Blockchain**: Selection recorded on-chain
 4. Agent leaderboard updates
 
 ### 4. Transparent Reputation
@@ -137,22 +131,17 @@ All agent performance is:
                                │
                                ▼
                         ┌─────────────┐
-                        │ Base Sepolia│
-                        │ (Blockchain)│
+                        │ Arbitrum    │
+                        │ (Stylus)    │
                         └─────────────┘
 ```
 
 ## 📋 Smart Contracts
 
-### ChartRegistry
-- **Address**: `0x9E62826B28d72739524a00975905C4e618926690`
-- **Purpose**: Store chart commitments with ZK verification
-- **View**: [BaseScan](https://sepolia.basescan.org/address/0x9E62826B28d72739524a00975905C4e618926690)
-
-### AgentReputation  
-- **Address**: `0xb4fa5aC142ecA14bEBB99B94c104F36bA2AE32B7`
-- **Purpose**: Transparent agent reputation tracking
-- **View**: [BaseScan](https://sepolia.basescan.org/address/0xb4fa5aC142ecA14bEBB99B94c104F36bA2AE32B7)
+### ChartRegistry (Stylus)
+- **Network**: Arbitrum Sepolia
+- **Purpose**: Store chart commitments with on-chain ZK verification
+- **Technology**: Rust/WASM smart contract
 
 ## 🎯 API Endpoints
 
@@ -218,10 +207,10 @@ Both agents use identical astronomical data but employ different weighting strat
 - **Verification**: On-chain + Server-side
 
 ### Blockchain Integration
-- **Network**: Base Sepolia (Ethereum L2)
-- **Contracts**: Deployed via ethers.js v6
+- **Network**: Arbitrum Sepolia (Ethereum L2)
+- **Contracts**: Stylus (Rust/WASM) deployed via cargo-stylus
 - **Gas**: Platform-sponsored
-- **Explorer**: BaseScan
+- **Explorer**: Arbiscan
 
 ## 📁 Project Structure
 
@@ -238,8 +227,8 @@ Both agents use identical astronomical data but employ different weighting strat
 │   ├── storage.ts          # Database layer
 │   └── db.ts               # Drizzle config
 ├── contracts/              # Smart contracts
-│   ├── ChartRegistry.sol
-│   └── AgentReputation.sol
+│   ├── src/lib.rs          # Stylus ChartRegistry (Rust)
+│   └── Cargo.toml          # Rust dependencies
 ├── lib/                    # Shared utilities
 │   ├── astro/              # Astronomy engine
 │   ├── agents/             # AI agents
@@ -250,14 +239,13 @@ Both agents use identical astronomical data but employ different weighting strat
 
 ## 🚀 Deployment
 
-**Quick Deploy (15 minutes):**
+**Deployment Steps:**
 
-1. Deploy backend to Railway
-2. Deploy frontend to Vercel
-3. Update environment variables
-4. Done!
-
-See [DEPLOY_NOW.md](DEPLOY_NOW.md) for complete instructions.
+1. Set up PostgreSQL database (Neon)
+2. Deploy backend to Railway or Vercel
+3. Deploy frontend to Vercel
+4. Configure environment variables
+5. Deploy Stylus contract to Arbitrum Sepolia
 
 ## 🏆 Hackathon Features
 
@@ -266,7 +254,7 @@ Built for **Ethereum is for AI Hackathon**:
 - ✅ Zero-Knowledge proofs for privacy
 - ✅ On-chain transparency
 - ✅ AI agent competition
-- ✅ Base (Ethereum L2) integration
+- ✅ Arbitrum Stylus (Rust/WASM) integration
 - ✅ Decentralized reputation
 - ✅ Gas sponsorship
 - ✅ Modern Web3 UX
@@ -279,7 +267,7 @@ MIT
 
 - Ethereum Foundation
 - Virtuals Protocol
-- Base Network
+- Arbitrum Foundation
 - Privy.io
 - Perplexity AI
 - Neon Database

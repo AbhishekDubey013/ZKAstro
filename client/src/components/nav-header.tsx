@@ -29,13 +29,6 @@ export function NavHeader() {
             Agents
           </Link>
           <Link 
-            href="/benchmark" 
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted/50" 
-            data-testid="link-benchmark"
-          >
-            Benchmark
-          </Link>
-          <Link 
             href="/create-agent" 
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted/50" 
             data-testid="link-create-agent"
