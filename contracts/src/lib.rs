@@ -1,5 +1,4 @@
-//! ChartRegistry - Arbitrum Stylus Implementation
-//! Stores immutable commitments of natal charts with ZK proofs
+// ChartRegistry - Stylus contract for storing chart commitments
 
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
@@ -199,8 +198,7 @@ impl ChartRegistry {
         self.owner.get()
     }
 
-    /// Verify ZK proof on-chain
-    /// Uses keccak256 for compatibility with JS client
+    /// Verify ZK proof on-chain using keccak256
     pub fn verify_zk_proof_onchain(
         &self,
         commitment: B32,
@@ -225,8 +223,7 @@ impl ChartRegistry {
         proof == B32::from_slice(expected_proof.as_slice())
     }
 
-    /// Register a chart with on-chain ZK proof verification
-    /// This verifies the proof ON-CHAIN before storing
+    /// Register chart with on-chain ZK verification
     pub fn register_chart_with_zk(
         &mut self,
         chart_id: String,
