@@ -1,0 +1,925 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAdminRoutes } from "./admin-routes";
+import { createAgentHandler, getAgentCreationStats } from "./agent-creation";
+import { DateTime } from "luxon";
+import crypto from "crypto";
+import { calculatePlanetaryPositions } from "../lib/astro/planets";
+import { calculateAscendant } from "../lib/astro/equalHouses";
+import { generateAgentPrediction } from "../lib/agents/generatePrediction";
+import { x402PaymentRequired, x402PaymentOptional, X402_CONFIG } from "./x402-middleware";
+import {
+  createChartRequestSchema,
+  createChartZKRequestSchema,
+  createPredictionRequestSchema,
+  selectAnswerSchema,
+  type CreateChartRequest,
+  type CreateChartZKRequest,
+  type CreatePredictionRequest,
+  type SelectAnswerRequest,
+} from "@shared/schema";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication first
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      // In local dev mode (using Privy), there's no server-side user session
+      // Return 401 to indicate not authenticated, frontend will use Privy
+      if (!req.user || !req.user.claims) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Wallet authentication endpoint (Web3/MetaMask)
+  app.post('/api/auth/wallet', async (req, res) => {
+    try {
+      const { address, message, signature } = req.body;
+
+      if (!address || !message || !signature) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // For now, we'll trust the signature (in production, verify it using ethers.js)
+      // This is a simplified version - proper implementation would verify the signature
+      
+      // Create or get user by wallet address
+      let user = await storage.getUserByEmail(address.toLowerCase());
+      
+      if (!user) {
+        // Create new user with wallet address
+        user = await storage.createUser({
+          email: address.toLowerCase(),
+          firstName: "Wallet",
+          lastName: "User",
+          profileImageUrl: null,
+        });
+      }
+
+      // Create session (simplified - in production use proper session management)
+      (req as any).session = { userId: user.id };
+
+      res.json({ success: true, user });
+    } catch (error: any) {
+      console.error("Wallet auth error:", error);
+      res.status(500).json({ error: error.message || "Wallet authentication failed" });
+    }
+  });
+
+  // GET /api/charts - Get all charts for authenticated user
+  app.get("/api/charts", isAuthenticated, async (req: any, res) => {
+    try {
+      // Get userId from session OR from query parameter (wallet address)
+      let userId = req.user?.claims?.sub || req.query.walletAddress || req.query.privyUserId || null;
+      
+      // Normalize wallet address to lowercase for consistent matching
+      if (userId && userId.startsWith('0x')) {
+        userId = userId.toLowerCase();
+      }
+      
+      if (userId) {
+        const charts = await storage.getChartsByUserId(userId);
+        res.json(charts);
+      } else {
+        console.warn("⚠️ No userId provided for /api/charts - returning empty array");
+        res.json([]);
+      }
+    } catch (error: any) {
+      console.error("Error getting charts:", error);
+      res.status(500).json({ error: error.message || "Failed to get charts" });
+    }
+  });
+  // GET /api/chart/:id - Get a chart by ID
+  app.get("/api/chart/:id", async (req, res) => {
+    try {
+      const chart = await storage.getChart(req.params.id);
+      if (!chart) {
+        return res.status(404).json({ error: "Chart not found" });
+      }
+      res.json(chart);
+    } catch (error: any) {
+      console.error("Error getting chart:", error);
+      res.status(500).json({ error: error.message || "Failed to get chart" });
+    }
+  });
+
+  // POST /api/chart - Create a new natal chart (ZK MODE ONLY - Maximum Privacy)
+  app.post("/api/chart", async (req, res) => {
+    try {
+      // Get userId from session OR from request body (wallet address)
+      let userId = (req as any).user?.claims?.sub || req.body.walletAddress || req.body.privyUserId || null;
+      
+      // Normalize wallet address to lowercase for consistent matching
+      if (userId && userId.startsWith('0x')) {
+        userId = userId.toLowerCase();
+      }
+      
+      // ZK MODE ONLY: Client MUST provide pre-calculated positions + cryptographic proof
+      // Server NEVER sees raw birth data - maximum privacy!
+      if (req.body.zkEnabled !== true) {
+        return res.status(400).json({
+          error: "ZK mode required",
+          message: "This application only accepts Zero-Knowledge chart creation for maximum privacy. Your birth data is calculated in your browser and never sent to the server."
+        });
+      }
+      
+      // Parse and validate ZK request
+      let zkBody: CreateChartZKRequest;
+      try {
+        zkBody = createChartZKRequestSchema.parse(req.body);
+      } catch (error: any) {
+        console.error("❌ Chart creation validation error:", error);
+        console.error("Request body:", JSON.stringify(req.body, null, 2));
+        return res.status(400).json({
+          error: "Validation failed",
+          message: error.errors?.[0]?.message || error.message || "Invalid request format",
+          details: error.errors || error
+        });
+      }
+
+      // Ensure user exists in database (create if needed for Privy users)
+      if (userId) {
+        try {
+          await storage.ensureUser(userId);
+        } catch (dbError: any) {
+          console.error("❌ Database error ensuring user:", dbError);
+          // If database is not available, we can still proceed but log the error
+          if (dbError.message?.includes("DATABASE_URL") || dbError.message?.includes("connection")) {
+            return res.status(503).json({
+              error: "Database unavailable",
+              message: "The database connection is not configured. Please set a valid DATABASE_URL in your .env file."
+            });
+          }
+          throw dbError; // Re-throw if it's a different error
+        }
+      }
+
+        // VERIFY ZK PROOF using Poseidon hash (cryptographically sound)
+        const { verifyZKProof } = await import('../lib/zkproof/poseidon-proof');
+        
+        const isValid = await verifyZKProof(
+          zkBody.inputsHash, // commitment
+          zkBody.zkProof,    // proof
+          zkBody.zkSalt,     // nonce
+          {
+            planets: zkBody.params.planets,
+            asc: zkBody.params.asc,
+            mc: zkBody.params.mc
+          }
+        );
+        
+        console.log(`🔐 ZK Proof verification result: ${isValid ? '✅ VALID' : '❌ INVALID'}`);
+
+        if (!isValid) {
+          return res.status(400).json({
+            error: "ZK proof verification failed",
+            message: "The cryptographic proof could not be verified. Please try regenerating your chart."
+          });
+        }
+        
+        console.log(`✅ ZK Proof verified for chart commitment: ${zkBody.inputsHash.slice(0, 16)}...`);
+        
+        // Save chart with VERIFIED ZK proof (raw birth data NEVER stored on server)
+        const chart = await storage.createChart({
+          userId: userId,
+          inputsHash: zkBody.inputsHash,
+          algoVersion: "western-equal-v1",
+          paramsJson: zkBody.params,
+          zkEnabled: true,
+          zkProof: zkBody.zkProof,
+          zkSalt: zkBody.zkSalt,
+        });
+
+        // 🔗 RECORD ON-CHAIN: Chart commitment to Arbitrum Sepolia (Stylus)
+        // Using Stylus for 10-100x cheaper gas costs
+        const onChainResult = await import('../lib/blockchain/arbitrum-registry.js')
+          .then(module => module.recordChartOnArbitrum(
+            chart.id,
+            zkBody.params,
+            userId,
+            zkBody.zkProof
+          ))
+          .catch(err => {
+            console.error('⚠️  On-chain recording failed (non-blocking):', err.message);
+            return null;
+          });
+
+        return res.json({
+          chartId: chart.id,
+          params: zkBody.params,
+          inputsHash: zkBody.inputsHash,
+          zk: {
+            enabled: true,
+            proof: zkBody.zkProof,
+            verified: true, // Cryptographically verified!
+            algoVersion: "western-equal-v1",
+            privacy: "maximum", // Birth data never touched the server!
+          },
+          onChain: onChainResult ? {
+            recorded: true,
+            txHash: onChainResult.txHash,
+            chartHash: onChainResult.chartHash,
+            explorer: onChainResult.explorerUrl || `https://sepolia.arbiscan.io/tx/${onChainResult.txHash}`,
+          } : {
+            recorded: false,
+            reason: 'Contracts not deployed or error occurred',
+          },
+        });
+      } catch (error: any) {
+        console.error("❌ Error creating ZK chart:", error);
+        console.error("Error stack:", error.stack);
+        
+        // Check if it's a database connection error
+        if (error.message?.includes("DATABASE_URL") || 
+            error.message?.includes("connection") || 
+            error.message?.includes("ECONNREFUSED") ||
+            error.message?.includes("connect")) {
+          return res.status(503).json({ 
+            error: "Database unavailable",
+            message: "The database connection is not configured. Please set a valid DATABASE_URL in your .env file."
+          });
+        }
+        
+        // Check if it's a validation/parse error
+        if (error.message?.includes("parse") || error.name === "ZodError") {
+          return res.status(400).json({ 
+            error: "Invalid chart data",
+            message: error.errors?.[0]?.message || error.message || "Please ensure all required fields are provided and in the correct format.",
+            details: error.errors || error
+          });
+        }
+        
+        // Return the actual error message
+        res.status(400).json({ 
+          error: error.message || "Failed to create chart",
+          message: error.message || "Chart creation failed. Please try again.",
+          details: process.env.NODE_ENV === "development" ? error.stack : undefined
+        });
+      }
+    });
+
+
+  // GET /api/chart/:chartId/today-prediction - Get or create today's prediction
+  app.get("/api/chart/:chartId/today-prediction", async (req, res) => {
+    try {
+      const { chartId } = req.params;
+      const userId = (req as any).user?.claims?.sub || req.query.privyUserId || null;
+
+      // Get the chart
+      const chart = await storage.getChart(chartId);
+      if (!chart) {
+        return res.status(404).json({ error: "Chart not found" });
+      }
+
+      // Get today's date (UTC, start of day)
+      const today = DateTime.now().toUTC().startOf("day").toJSDate();
+
+      // Check if there's already a prediction for today
+      let request = await storage.getPredictionRequestByChartAndDate(chartId, today);
+
+      // If no prediction exists for today, create one
+      if (!request) {
+        const defaultQuestion = "What does today hold for me?";
+        request = await storage.createPredictionRequest({
+          userId: userId,
+          chartId: chartId,
+          question: defaultQuestion,
+          targetDate: today,
+        });
+
+        // Generate predictions asynchronously
+        generatePredictionsAsync(request.id, chart, today, defaultQuestion);
+      }
+
+      res.json({ requestId: request.id, created: !request });
+    } catch (error: any) {
+      console.error("Error getting/creating today's prediction:", error);
+      res.status(500).json({ error: error.message || "Failed to get today's prediction" });
+    }
+  });
+
+  // Helper function to get payment recipients (agents with wallets)
+  // x402 Direct Payments: Routes payments directly to agent wallets
+  async function getAgentPaymentRecipients(userWallet?: string) {
+    const allAgents = await storage.getAllActiveAgents();
+    const selectedAgents = selectAgents(allAgents, 2);
+    
+    // Fallback platform wallet (only used if agent has no wallet configured)
+    const envWallet = process.env.RECEIVER_ADDRESS || process.env.PLATFORM_WALLET;
+    const PLATFORM_WALLET = envWallet?.toLowerCase() || '0x000000000000000000000000000000000000dead';
+    
+    // Build recipients list - each agent with a wallet gets paid directly
+    const recipients: Array<{ address: string; amount: string; agentId: string }> = [];
+    
+    for (const agent of selectedAgents) {
+      // Get wallet from database or fall back to env variable
+      let agentWallet = agent.paymentWallet;
+      
+      // If no wallet in DB, try env variables as fallback
+      if (!agentWallet) {
+        if (agent.handle === '@auriga') {
+          agentWallet = process.env.AURIGA_WALLET_ADDRESS?.toLowerCase();
+        } else if (agent.handle === '@nova') {
+          agentWallet = process.env.NOVA_WALLET_ADDRESS?.toLowerCase();
+        }
+      }
+      
+      // Use agent wallet if available, otherwise platform wallet
+      const paymentAddress = agentWallet || PLATFORM_WALLET;
+      
+      recipients.push({
+        address: paymentAddress,
+        amount: X402_CONFIG.amountPerAgent, // Per-agent amount
+        agentId: agent.id,
+      });
+      
+      console.log(`💰 Payment recipient: ${agent.handle} → ${paymentAddress} (${X402_CONFIG.amountPerAgent} ETH)`);
+    }
+    
+    // If no agents selected, use platform as fallback
+    if (recipients.length === 0) {
+      recipients.push({
+        address: PLATFORM_WALLET,
+        amount: X402_CONFIG.amountPerPrediction,
+        agentId: 'platform',
+      });
+    }
+    
+    return recipients;
+  }
+
+  // POST /api/request/paid - Create prediction WITH payment (for testing X402)
+  app.post("/api/request/paid",
+    // Always require X402 payment on this route
+    async (req, res, next) => {
+      console.log('💰 /api/request/paid - X402 payment REQUIRED');
+      console.log('Request body:', JSON.stringify(req.body));
+      const userWallet = req.body?.walletAddress;
+      return x402PaymentRequired(async () => await getAgentPaymentRecipients(userWallet))(req, res, next);
+    },
+    async (req, res) => {
+      // Same handler as /api/request - just forward to it
+      try {
+        const body: CreatePredictionRequest = createPredictionRequestSchema.parse(req.body);
+        const chart = await storage.getChart(body.chartId);
+        if (!chart) {
+          return res.status(404).json({ error: "Chart not found" });
+        }
+
+        const targetDateStr = body.targetDate || DateTime.now().toFormat("yyyy-MM-dd");
+        const targetDate = DateTime.fromFormat(targetDateStr, "yyyy-MM-dd", { zone: "utc" })
+          .startOf("day")
+          .toJSDate();
+
+        const x402Payment = (req as any).x402Payment;
+        
+        const request = await storage.createPredictionRequest({
+          userId: req.body.walletAddress || null,
+          chartId: body.chartId,
+          question: body.question,
+          targetDate,
+        });
+
+        generatePredictionsAsync(request.id, chart, targetDate, body.question);
+
+        res.json({ 
+          requestId: request.id,
+          x402: x402Payment ? {
+            paid: true,
+            paymentId: x402Payment.paymentId,
+            txHashes: x402Payment.txHashes,
+          } : null,
+        });
+      } catch (error: any) {
+        console.error("Error creating paid prediction:", error);
+        res.status(500).json({ error: error.message || "Failed to create prediction" });
+      }
+    }
+  );
+
+  // POST /api/request - Create a prediction request (free on testnet)
+  app.post("/api/request", 
+    // X402 middleware - skip on testnet by default
+    async (req, res, next) => {
+      const isTestnet = process.env.NODE_ENV !== 'production';
+      
+      console.log(`X402 check: isTestnet=${isTestnet}, body.requirePayment=${req.body?.requirePayment}`);
+      
+      // On testnet: skip payment by default
+      if (isTestnet) {
+        console.log('⚠️ Testnet mode: Skipping X402 payment (use /api/request/paid to test)');
+        return next();
+      }
+      
+      // Production: always require payment
+      console.log('💰 Production mode - applying X402 middleware');
+      const userWallet = req.body?.walletAddress;
+      return x402PaymentRequired(async () => await getAgentPaymentRecipients(userWallet))(req, res, next);
+    },
+    async (req, res) => {
+    try {
+      const body: CreatePredictionRequest = createPredictionRequestSchema.parse(req.body);
+
+      // Get the chart
+      const chart = await storage.getChart(body.chartId);
+      if (!chart) {
+        return res.status(404).json({ error: "Chart not found" });
+      }
+
+      // Parse target date
+      const targetDateStr = body.targetDate || DateTime.now().toFormat("yyyy-MM-dd");
+      const targetDate = DateTime.fromFormat(targetDateStr, "yyyy-MM-dd", { zone: "utc" })
+        .startOf("day")
+        .toJSDate();
+
+      // Check if payment was made via X402
+      const x402Payment = (req as any).x402Payment;
+      
+      // Create prediction request
+      const request = await storage.createPredictionRequest({
+        userId: (req as any).user?.claims?.sub || req.body.walletAddress || req.body.privyUserId || null,
+        chartId: body.chartId,
+        question: body.question,
+        targetDate,
+      });
+
+      // Generate predictions asynchronously (don't wait)
+      generatePredictionsAsync(request.id, chart, targetDate, body.question);
+
+      res.json({ 
+        requestId: request.id,
+        x402: x402Payment ? {
+          paid: true,
+          paymentId: x402Payment.paymentId,
+          txHashes: x402Payment.txHashes,
+        } : {
+          paid: false,
+          note: 'Prediction created without payment (testnet mode)',
+        },
+      });
+    } catch (error: any) {
+      console.error("Error creating request:", error);
+      res.status(400).json({ error: error.message || "Failed to create request" });
+    }
+  });
+
+  // GET /api/request/:id - Get prediction request with answers
+  app.get("/api/request/:id", async (req, res) => {
+    try {
+      const request = await storage.getPredictionRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      const chart = await storage.getChart(request.chartId);
+      const answers = await storage.getAnswersByRequestId(request.id);
+
+      // Enrich answers with agent info
+      const enrichedAnswers = await Promise.all(
+        answers.map(async (answer) => {
+          const agent = await storage.getAgent(answer.agentId);
+          return {
+            ...answer,
+            agent: agent ? {
+              handle: agent.handle,
+              method: agent.method,
+              reputation: agent.reputation,
+            } : null,
+          };
+        })
+      );
+
+      res.json({
+        request: {
+          id: request.id,
+          question: request.question,
+          targetDate: request.targetDate,
+          status: request.status,
+          selectedAnswerId: request.selectedAnswerId,
+          correctAnswerId: request.correctAnswerId,
+          chartId: request.chartId,
+        },
+        chart: chart ? {
+          id: chart.id,
+          paramsJson: chart.paramsJson,
+        } : null,
+        answers: enrichedAnswers,
+      });
+    } catch (error: any) {
+      console.error("Error getting request:", error);
+      res.status(400).json({ error: error.message || "Failed to get request" });
+    }
+  });
+
+  // POST /api/request/:id/select - Select correct prediction (FINAL - cannot be changed)
+  // User earns points for voting, agents get +1/-1 reputation
+  app.post("/api/request/:id/select", async (req, res) => {
+    try {
+      const body: SelectAnswerRequest = selectAnswerSchema.parse(req.body);
+      
+      const request = await storage.getPredictionRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      // 🚫 VOTES ARE FINAL - Check if already voted
+      if (request.status === "SETTLED" || request.correctAnswerId) {
+        return res.status(400).json({ 
+          error: "Vote already recorded",
+          message: "This prediction has already been voted on. Votes are final and cannot be changed.",
+          alreadyVoted: true,
+          correctAnswerId: request.correctAnswerId,
+        });
+      }
+
+      // Get all answers for this request
+      const answers = await storage.getAnswersByRequestId(request.id);
+      const selectedAnswer = answers.find(a => a.id === body.answerId);
+      
+      if (!selectedAnswer) {
+        return res.status(404).json({ error: "Answer not found" });
+      }
+
+      // Find the losing answer(s)
+      const losingAnswers = answers.filter(a => a.id !== body.answerId);
+
+      // Get user ID for awarding points
+      const userId = (req as any).user?.claims?.sub || req.body.walletAddress || req.body.privyUserId || null;
+
+      // Update request with correct answer (FINAL)
+      await storage.updatePredictionRequestCorrectAnswer(request.id, body.answerId);
+      await storage.updatePredictionRequestStatus(request.id, "SETTLED", body.answerId);
+
+      // Update winner agent reputation (+1)
+      await storage.updateAgentReputation(selectedAnswer.agentId, 1);
+      await storage.createReputationEvent({
+        agentId: selectedAnswer.agentId,
+        requestId: request.id,
+        delta: 1,
+      });
+
+      // Update loser agent reputation (-1) for each losing agent
+      for (const loser of losingAnswers) {
+        await storage.updateAgentReputation(loser.agentId, -1);
+        await storage.createReputationEvent({
+          agentId: loser.agentId,
+          requestId: request.id,
+          delta: -1,
+        });
+      }
+
+      // 🏆 AWARD USER POINTS for voting
+      let userPointsAwarded = 0;
+      let userNewTotal = 0;
+      if (userId) {
+        // Award 10 points for voting on a prediction
+        const POINTS_FOR_VOTING = 10;
+        const updatedUser = await storage.updateUserReputation(userId, POINTS_FOR_VOTING);
+        if (updatedUser) {
+          userPointsAwarded = POINTS_FOR_VOTING;
+          userNewTotal = updatedUser.reputation;
+          console.log(`🏆 User ${userId} earned ${POINTS_FOR_VOTING} points! Total: ${userNewTotal}`);
+        }
+      }
+
+      // 🔗 RECORD ON-CHAIN: Agent selection for transparent scoring
+      // This makes agent reputation immutable and verifiable
+      const onChainTxHash = await import('../lib/blockchain/onchain-registry.js')
+        .then(module => module.recordAgentSelectionOnChain(
+          selectedAnswer.agentId,
+          request.id,
+          userId,
+          1 // reputation bonus for winner
+        ))
+        .catch(err => {
+          console.error('⚠️  On-chain reputation update failed (non-blocking):', err.message);
+          return null;
+        });
+
+      res.json({ 
+        ok: true,
+        voteFinal: true, // Indicates vote cannot be changed
+        userPoints: {
+          awarded: userPointsAwarded,
+          newTotal: userNewTotal,
+        },
+        winner: {
+          agentId: selectedAnswer.agentId,
+          delta: 1,
+        },
+        losers: losingAnswers.map(l => ({
+          agentId: l.agentId,
+          delta: -1,
+        })),
+        onChain: onChainTxHash ? {
+          recorded: true,
+          txHash: onChainTxHash,
+          explorer: `https://sepolia.arbiscan.io/tx/${onChainTxHash}`,
+          message: 'Agent reputation updated',
+        } : {
+          recorded: false,
+          reason: 'Contracts not deployed or error occurred',
+        },
+      });
+    } catch (error: any) {
+      console.error("Error selecting answer:", error);
+      res.status(400).json({ error: error.message || "Failed to select answer" });
+    }
+  });
+
+  // GET /api/user/predictions - Get all predictions for the current user
+  app.get("/api/user/predictions", async (req, res) => {
+    try {
+      // Get userId from session OR from query parameter (wallet address)
+      let userId = (req as any).user?.claims?.sub || req.query.walletAddress || req.query.privyUserId || null;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      // Get all prediction requests for this user
+      const requests = await storage.getPredictionsByUserId(userId);
+      
+      // Enrich with answers and agent info
+      const enrichedRequests = await Promise.all(
+        requests.map(async (request) => {
+          const answers = await storage.getAnswersByRequestId(request.id);
+          const enrichedAnswers = await Promise.all(
+            answers.map(async (answer) => {
+              const agent = await storage.getAgent(answer.agentId);
+              return {
+                id: answer.id,
+                agentId: answer.agentId,
+                summary: answer.summary,
+                dayScore: answer.dayScore,
+                agent: agent ? {
+                  handle: agent.handle,
+                  reputation: agent.reputation,
+                } : null,
+              };
+            })
+          );
+          
+          return {
+            id: request.id,
+            question: request.question,
+            targetDate: request.targetDate,
+            status: request.status,
+            selectedAnswerId: request.selectedAnswerId,
+            correctAnswerId: request.correctAnswerId,
+            createdAt: request.createdAt,
+            answers: enrichedAnswers,
+          };
+        })
+      );
+
+      res.json(enrichedRequests);
+    } catch (error: any) {
+      console.error("Error getting user predictions:", error);
+      res.status(500).json({ error: error.message || "Failed to get predictions" });
+    }
+  });
+
+  // GET /api/request/:id/chat - Get chat messages for a prediction
+  app.get("/api/request/:id/chat", async (req, res) => {
+    try {
+      const requestId = req.params.id;
+      
+      // Verify request exists
+      const request = await storage.getPredictionRequest(requestId);
+      if (!request) {
+        return res.status(404).json({ error: "Prediction request not found" });
+      }
+
+      // Return empty messages - chat is now dynamic/not persisted
+      // Each question gets a fresh contextual response
+      res.json([]);
+    } catch (error: any) {
+      console.error("Error getting chat messages:", error);
+      res.status(500).json({ error: error.message || "Failed to get chat messages" });
+    }
+  });
+
+  // POST /api/request/:id/chat - Send a chat message
+  app.post("/api/request/:id/chat", async (req, res) => {
+    try {
+      const requestId = req.params.id;
+      const { message } = req.body;
+
+      console.log(`📨 Chat message received for request ${requestId}:`, message);
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Get userId from session if authenticated
+      let userId = (req as any).user?.claims?.sub || null;
+
+      // Get prediction request and answers
+      const request = await storage.getPredictionRequest(requestId);
+      if (!request) {
+        console.error(`❌ Request not found: ${requestId}`);
+        return res.status(404).json({ error: "Prediction request not found" });
+      }
+
+      const answers = await storage.getAnswersByRequestId(requestId);
+      if (answers.length === 0) {
+        console.error(`❌ No answers found for request: ${requestId}`);
+        return res.status(400).json({ error: "No predictions available yet" });
+      }
+
+      // Use the first answer's data for context (or selected answer if available)
+      const primaryAnswer = request.selectedAnswerId 
+        ? answers.find(a => a.id === request.selectedAnswerId) || answers[0]
+        : answers[0];
+
+      // Parse factors
+      const transitFactors = primaryAnswer.factors.split('\n').filter(f => f.trim());
+
+      // No conversation history - each question is answered fresh with full prediction context
+      // This keeps responses focused and practical
+      const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+
+      // Generate AI response
+      console.log('🤖 Generating AI response...');
+      const { generateChatResponse } = await import('../lib/agents/llm');
+      const aiResponse = await generateChatResponse(
+        message,
+        {
+          dayScore: primaryAnswer.dayScore,
+          transitFactors,
+          predictionSummary: primaryAnswer.summary,
+          targetDate: request.targetDate.toISOString(),
+        },
+        conversationHistory
+      );
+
+      console.log('✅ AI response generated:', aiResponse.substring(0, 100) + '...');
+
+      // Return dynamic response without saving to database
+      // This keeps the chat lightweight and contextual
+      res.json({
+        userMessage: {
+          id: `temp-${Date.now()}-user`,
+          predictionRequestId: requestId,
+          userId,
+          role: 'user',
+          content: message,
+          createdAt: new Date(),
+          context: null,
+        },
+        assistantMessage: {
+          id: `temp-${Date.now()}-assistant`,
+          predictionRequestId: requestId,
+          userId: null,
+          role: 'assistant',
+          content: aiResponse,
+          createdAt: new Date(),
+          context: null,
+        },
+      });
+    } catch (error: any) {
+      console.error("❌ Error sending chat message:", error);
+      res.status(500).json({ error: error.message || "Failed to send message" });
+    }
+  });
+
+  // GET /api/agents - List all agents
+  app.get("/api/agents", async (req, res) => {
+    try {
+      const agents = await storage.getAllAgents();
+      res.json(agents);
+    } catch (error: any) {
+      console.error("Error getting agents:", error);
+      res.status(500).json({ error: "Failed to get agents" });
+    }
+  });
+
+  // GET /api/agents/stats - Get agents with performance metrics
+  app.get("/api/agents/stats", async (req, res) => {
+    try {
+      const stats = await storage.getAgentStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error getting agent stats:", error);
+      res.status(500).json({ error: "Failed to get agent stats" });
+    }
+  });
+
+  // Setup admin routes for agent deployment and management
+  setupAdminRoutes(app);
+
+  // Agent creation routes (public)
+  app.post('/api/admin/agents/create', createAgentHandler);
+  app.get('/api/agents/creation-stats', getAgentCreationStats);
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
+
+// Async function to generate predictions
+async function generatePredictionsAsync(
+  requestId: string,
+  chart: any,
+  targetDate: Date,
+  question: string = "How will my day go?"
+) {
+  try {
+    // Get active agents
+    const agents = await storage.getAllActiveAgents();
+    
+    // Select 2 agents using weighted random sampling
+    const selectedAgents = selectAgents(agents, 2);
+
+    // Calculate transit positions for target date
+    const transitDateTime = DateTime.fromJSDate(targetDate, { zone: "utc" }).set({
+      hour: 12,
+      minute: 0,
+      second: 0,
+    });
+    
+    const { planets: transitPlanets, retro: transitRetro } = calculatePlanetaryPositions(transitDateTime);
+
+    const natalChart = chart.paramsJson;
+    const transitChart = {
+      planets: transitPlanets,
+      retro: transitRetro,
+    };
+
+    // Generate predictions from selected agents using their unique systemPrompt
+    for (const agent of selectedAgents) {
+      // Use the generic prediction generator with agent's systemPrompt from DB
+      const prediction = await generateAgentPrediction(
+        {
+          id: agent.id,
+          handle: agent.handle,
+          aggressiveness: agent.aggressiveness,
+          systemPrompt: agent.systemPrompt, // From database - shapes unique behavior
+        },
+        natalChart,
+        transitChart,
+        question,
+        targetDate.toISOString().split('T')[0],
+        targetDate // Pass Date object for accurate moon phase
+      );
+
+      await storage.createPredictionAnswer({
+        requestId,
+        agentId: agent.id,
+        summary: prediction.summary,
+        highlights: prediction.highlights,
+        dayScore: prediction.dayScore,
+        factors: prediction.factors,
+      });
+    }
+
+    // Update request status to ANSWERED
+    await storage.updatePredictionRequestStatus(requestId, "ANSWERED");
+  } catch (error) {
+    console.error("Error generating predictions:", error);
+  }
+}
+
+// Weighted random agent selection
+function selectAgents(agents: any[], count: number): any[] {
+  if (agents.length === 0) return [];
+  if (agents.length <= count) return agents;
+
+  const selected: any[] = [];
+  const available = [...agents];
+
+  for (let i = 0; i < count; i++) {
+    // Calculate weights (reputation + 1 to avoid zero weight)
+    const weights = available.map(a => a.reputation + 1);
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+    // Random selection based on weight
+    let random = Math.random() * totalWeight;
+    let selectedIndex = 0;
+
+    for (let j = 0; j < weights.length; j++) {
+      random -= weights[j];
+      if (random <= 0) {
+        selectedIndex = j;
+        break;
+      }
+    }
+
+    selected.push(available[selectedIndex]);
+    available.splice(selectedIndex, 1);
+  }
+
+  return selected;
+}

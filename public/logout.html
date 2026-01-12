@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Logout</title>
+  <script>
+    // Auto-logout script
+    window.addEventListener('load', async () => {
+      try {
+        // Try to access Privy from window (if available)
+        if (window.privy) {
+          await window.privy.logout();
+        }
+        
+        // Clear localStorage
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Redirect to home
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Logout error:', error);
+        // Still redirect
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/';
+      }
+    });
+  </script>
+</head>
+<body>
+  <p>Logging out...</p>
+</body>
+</html>
+
+

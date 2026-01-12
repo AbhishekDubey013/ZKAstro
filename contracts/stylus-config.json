@@ -1,0 +1,30 @@
+{
+  "network": {
+    "name": "Arbitrum Sepolia",
+    "chainId": 421614,
+    "rpcUrl": "https://sepolia-rollup.arbitrum.io/rpc",
+    "explorer": "https://sepolia.arbiscan.io",
+    "nativeCurrency": {
+      "name": "Ethereum",
+      "symbol": "ETH",
+      "decimals": 18
+    }
+  },
+  "contracts": {
+    "ChartRegistry": {
+      "wasmPath": "../target/wasm32-unknown-unknown/release/chart_registry_stylus.wasm",
+      "gasLimit": 10000000,
+      "description": "Stores immutable commitments of natal charts with ZK proofs"
+    }
+  },
+  "deployment": {
+    "confirmations": 2,
+    "timeout": 300000,
+    "gasMultiplier": 1.2
+  },
+  "verification": {
+    "enabled": true,
+    "apiKey": ""
+  }
+}
+
