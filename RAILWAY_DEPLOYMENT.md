@@ -2,6 +2,23 @@
 
 Complete step-by-step guide to deploy Astrolabe on Railway.
 
+## 🎯 Quick Answer: Where to Get Railway URL
+
+**To find your Railway URL for `VITE_API_URL`:**
+
+1. Go to [railway.app/dashboard](https://railway.app/dashboard)
+2. Click your **project** → Click your **service** (the deployed app)
+3. Click **"Settings"** tab (top navigation)
+4. Scroll to **"Domains"** section
+5. You'll see your URL: `https://your-app-name-production.up.railway.app`
+6. **Copy this URL** - this is what you use for `VITE_API_URL`!
+
+**If no domain is shown:**
+- Click **"Generate Domain"** button in the Domains section
+- Railway will create a URL for you automatically
+
+---
+
 ## 📋 Prerequisites
 
 1. **Railway Account**: Sign up at [railway.app](https://railway.app)
@@ -127,14 +144,64 @@ AGENT_FACTORY_ADDRESS=0x-your-agent-factory-contract
 
 ---
 
-## 🌐 Step 4: Configure Domain (Optional)
+## 🌐 Step 4: Get Your Railway URL
+
+### **Finding Your Railway URL**
+
+1. Go to your Railway project dashboard
+2. Click on your **service** (the deployed app)
+3. Look at the top of the page - you'll see:
+   - **"Settings"** tab
+   - **"Deployments"** tab
+   - **"Metrics"** tab
+   - **"Variables"** tab
+
+4. Click on **"Settings"** tab
+5. Scroll down to **"Domains"** section
+6. You'll see one of these:
+
+   **Option A: Auto-generated Railway domain**
+   ```
+   https://your-app-name-production.up.railway.app
+   ```
+   OR
+   ```
+   https://your-app-name.railway.app
+   ```
+
+   **Option B: Custom domain** (if you added one)
+   ```
+   https://www.astrolabes.xyz
+   ```
+
+### **Generate Railway Domain (If Not Visible)**
+
+If you don't see a domain:
+
+1. In **Settings** → **Domains** section
+2. Click **"Generate Domain"** button
+3. Railway will create: `https://your-app-name-production.up.railway.app`
+4. **Copy this URL** - this is your `VITE_API_URL`!
+
+### **Example Railway URLs**
+
+Your Railway URL will look like one of these:
+- `https://astrolabe-production-abc123.up.railway.app`
+- `https://zkastro-production-xyz789.up.railway.app`
+- `https://your-app-name.railway.app`
+
+**This is the URL you'll use for `VITE_API_URL`!**
+
+---
+
+## 🌐 Step 5: Configure Custom Domain (Optional)
+
+If you want to use `www.astrolabes.xyz` instead of Railway's domain:
 
 1. Go to Railway project → **Settings** → **Domains**
-2. Click **"Generate Domain"** (free `.railway.app` domain)
-3. Or add custom domain:
-   - Click **"Custom Domain"**
-   - Enter: `www.astrolabes.xyz`
-   - Follow DNS instructions
+2. Click **"Custom Domain"**
+3. Enter: `www.astrolabes.xyz`
+4. Follow DNS instructions
 
 ### DNS Configuration for GoDaddy
 
@@ -157,22 +224,47 @@ If using GoDaddy domain (`astrolabes.xyz`):
 
 ---
 
-## 🔧 Step 5: Update Frontend API URL
+## 🔧 Step 6: Update Frontend API URL
 
-If deploying frontend separately (e.g., Vercel), set:
+### **Where to Find Your Railway URL**
 
+1. **Railway Dashboard** → Your Project → Your Service
+2. **Settings** tab → Scroll to **"Domains"** section
+3. **Copy the URL** shown (e.g., `https://astrolabe-production-abc123.up.railway.app`)
+
+### **Set Frontend Environment Variable**
+
+If deploying frontend separately (e.g., Vercel, GoDaddy), set:
+
+**Option A: Using Railway's auto-generated domain**
 ```bash
-VITE_API_URL=https://your-app.railway.app
+VITE_API_URL=https://astrolabe-production-abc123.up.railway.app
 ```
+*(Replace with YOUR actual Railway URL from Step 4)*
 
-Or if using Railway domain:
+**Option B: Using custom domain**
 ```bash
 VITE_API_URL=https://www.astrolabes.xyz
 ```
 
+### **How to Set in Different Platforms**
+
+**Vercel:**
+1. Go to Vercel project → **Settings** → **Environment Variables**
+2. Add: `VITE_API_URL` = `https://your-railway-url.railway.app`
+3. Redeploy
+
+**GoDaddy (Static Hosting):**
+1. Build locally with: `VITE_API_URL=https://your-railway-url.railway.app npm run build`
+2. Upload `dist/` folder to GoDaddy
+
+**Local Development:**
+1. Create `.env` file in project root
+2. Add: `VITE_API_URL=https://your-railway-url.railway.app`
+
 ---
 
-## 📦 Step 6: Deploy
+## 📦 Step 7: Deploy
 
 1. Railway will auto-deploy on push to `astrolabe` branch
 2. Or manually trigger: **Settings** → **Deployments** → **Redeploy**
@@ -180,7 +272,7 @@ VITE_API_URL=https://www.astrolabes.xyz
 
 ---
 
-## ✅ Step 7: Verify Deployment
+## ✅ Step 8: Verify Deployment
 
 ### Check Health Endpoint
 ```bash
