@@ -94,10 +94,13 @@ export default function RequestDetail() {
     },
   });
 
+  const { walletAddress } = useAuth();
+  
   const selectAnswerMutation = useMutation({
     mutationFn: async (answerId: string) => {
       const response = await apiRequest("POST", `/api/request/${requestId}/select`, {
         answerId,
+        walletAddress: walletAddress || undefined, // Include wallet for points
       });
       const data = await response.json();
       

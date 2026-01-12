@@ -65,7 +65,7 @@ function PredictionCard({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ answerId }),
+        body: JSON.stringify({ answerId, walletAddress }), // Include wallet for points
       });
       
       if (response.ok) {
