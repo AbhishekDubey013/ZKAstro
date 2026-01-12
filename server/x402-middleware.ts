@@ -279,9 +279,14 @@ export function x402PaymentRequired(
         const recipients = await getRecipients(req);
 
         if (recipients.length === 0) {
-          // No recipients with wallets - skip payment
-          console.log('No payment recipients found, skipping X402');
-          return next();
+          // No recipients with wallets - log warning but still require payment to platform
+          console.warn('⚠️ No agent payment wallets found, using platform wallet as fallback');
+          // Don't skip - use platform wallet instead
+          recipients.push({
+            address: process.env.RECEIVER_ADDRESS || process.env.PLATFORM_WALLET || '0x000000000000000000000000000000000000dead',
+            amount: X402_CONFIG.amountPerPrediction,
+            agentId: 'platform',
+          });
         }
 
         const { statusCode, body, paymentId } = create402Response(recipients, userId);

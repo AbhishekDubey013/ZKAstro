@@ -417,14 +417,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`X402 check: isTestnet=${isTestnet}, body.requirePayment=${req.body?.requirePayment}`);
       
-      // On testnet: skip payment by default
-      if (isTestnet) {
+      // On testnet: skip payment by default (unless explicitly required)
+      if (isTestnet && !req.body?.requirePayment) {
         console.log('⚠️ Testnet mode: Skipping X402 payment (use /api/request/paid to test)');
         return next();
       }
       
-      // Production: always require payment
-      console.log('💰 Production mode - applying X402 middleware');
+      // Production or testnet with requirePayment: always require payment
+      console.log('💰 Applying X402 payment middleware');
       const userWallet = req.body?.walletAddress;
       return x402PaymentRequired(async () => await getAgentPaymentRecipients(userWallet))(req, res, next);
     },
@@ -649,8 +649,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "User not authenticated" });
       }
 
+      // Normalize wallet address to lowercase for consistent matching
+      if (userId && userId.startsWith('0x')) {
+        userId = userId.toLowerCase();
+      }
+
+      console.log(`📊 Fetching predictions for userId: ${userId}`);
+
       // Get all prediction requests for this user
       const requests = await storage.getPredictionsByUserId(userId);
+      
+      console.log(`📊 Found ${requests.length} prediction requests`);
       
       // Enrich with answers and agent info
       const enrichedRequests = await Promise.all(
@@ -687,6 +696,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(enrichedRequests);
     } catch (error: any) {
+      console.error("Error fetching user predictions:", error);
+      console.error("Error stack:", error.stack);
       console.error("Error getting user predictions:", error);
       res.status(500).json({ error: error.message || "Failed to get predictions" });
     }
