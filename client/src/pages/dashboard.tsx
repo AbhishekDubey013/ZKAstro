@@ -80,78 +80,79 @@ function PredictionCard({
   
   return (
     <Card 
-      className="relative cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200"
+      className="relative cursor-pointer hover:border-primary/30 hover:shadow-lg transition-all duration-200 h-full"
       onClick={onViewDetails}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm line-clamp-1 mb-1">"{prediction.question}"</p>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {new Date(prediction.targetDate).toLocaleDateString()}
-              </span>
-              <Badge 
-                variant={isSettled ? "default" : isAnswered ? "secondary" : "outline"}
-                className="text-xs"
+      <CardContent className="p-4 sm:p-5">
+        {/* Final vote indicator - top right */}
+        {isSettled && (
+          <div className="absolute top-3 right-3">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium">
+              🔒 Final
+            </span>
+          </div>
+        )}
+        
+        {/* Question and metadata */}
+        <div className="mb-4">
+          <p className="font-medium text-sm line-clamp-2 mb-2 pr-16">"{prediction.question}"</p>
+          <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50">
+              <Calendar className="h-3 w-3" />
+              {new Date(prediction.targetDate).toLocaleDateString()}
+            </span>
+            <Badge 
+              variant={isSettled ? "default" : isAnswered ? "secondary" : "outline"}
+              className="text-xs"
+            >
+              {isSettled ? "Resolved" : isAnswered ? "Vote Now" : "Pending"}
+            </Badge>
+          </div>
+        </div>
+        
+        {/* Agent scores - centered grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {prediction.answers.map((answer) => {
+            const isCorrect = answer.id === prediction.correctAnswerId;
+            const isLoser = isSettled && !isCorrect;
+            
+            return (
+              <div 
+                key={answer.id}
+                className={`text-center p-3 rounded-xl border transition-all ${
+                  isCorrect 
+                    ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/50 text-green-600 dark:text-green-400 shadow-md' 
+                    : isLoser
+                    ? 'bg-red-500/5 border-red-500/20 text-red-600/50 dark:text-red-400/50'
+                    : 'bg-muted/30 border-border/50 hover:bg-muted/50'
+                }`}
               >
-                {isSettled ? "Resolved" : isAnswered ? "Awaiting Result" : "Pending"}
-              </Badge>
-            </div>
-          </div>
-          
-          {/* Agent scores or mark correct buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            {prediction.answers.map((answer) => {
-              const isCorrect = answer.id === prediction.correctAnswerId;
-              const isLoser = isSettled && !isCorrect;
-              
-              return (
-                <div 
-                  key={answer.id}
-                  className={`text-center px-3 py-1.5 rounded-lg border transition-all ${
-                    isCorrect 
-                      ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/50 text-green-600 dark:text-green-400 shadow-sm' 
-                      : isLoser
-                      ? 'bg-red-500/5 border-red-500/20 text-red-600/50 dark:text-red-400/50'
-                      : 'bg-muted/50 border-border/50'
-                  }`}
-                >
-                  <p className="text-xs font-medium">{answer.agent?.handle || 'Agent'}</p>
-                  <p className="text-lg font-bold">{Math.round(answer.dayScore)}</p>
-                  {isAnswered && !isSettled && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 px-2 text-xs mt-1 hover:bg-primary/10"
-                      onClick={(e) => handleMarkCorrect(answer.id, e)}
-                    >
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Vote
-                    </Button>
-                  )}
-                  {isCorrect && (
-                    <span className="text-xs flex items-center gap-1 justify-center mt-1 font-semibold">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Winner 🏆
-                    </span>
-                  )}
-                  {isLoser && (
-                    <span className="text-xs text-red-500/60 mt-1 block">-1</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {/* Final vote indicator */}
-          {isSettled && (
-            <div className="absolute top-2 right-2">
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium">
-                🔒 Final
-              </span>
-            </div>
-          )}
+                <p className="text-xs font-semibold mb-1">{answer.agent?.handle || 'Agent'}</p>
+                <p className="text-2xl font-bold">{Math.round(answer.dayScore)}</p>
+                <p className="text-[10px] text-muted-foreground">score</p>
+                {isAnswered && !isSettled && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-3 text-xs mt-2 hover:bg-primary/10 w-full"
+                    onClick={(e) => handleMarkCorrect(answer.id, e)}
+                  >
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Vote
+                  </Button>
+                )}
+                {isCorrect && (
+                  <span className="text-xs flex items-center gap-1 justify-center mt-2 font-semibold">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Winner 🏆
+                  </span>
+                )}
+                {isLoser && (
+                  <span className="text-xs text-red-500/60 mt-2 block">-1 rep</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
@@ -658,13 +659,13 @@ export default function Dashboard() {
 
             {/* My Predictions Section */}
             {predictions && predictions.length > 0 && (
-              <div className="animate-fade-up space-y-4" style={{ animationDelay: '0.2s' }}>
-                <div className="flex items-center justify-between">
+              <div className="animate-fade-up space-y-5" style={{ animationDelay: '0.2s' }}>
+                <div className="flex items-center justify-between px-1">
                   <h2 className="text-xl font-serif font-semibold">My Predictions</h2>
-                  <span className="text-sm text-muted-foreground">{predictions.length} total</span>
+                  <span className="text-sm text-muted-foreground px-3 py-1 rounded-full bg-muted/50">{predictions.length} total</span>
                 </div>
-                <div className="space-y-3">
-                  {predictions.slice(0, 5).map((prediction) => (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {predictions.slice(0, 6).map((prediction) => (
                     <PredictionCard
                       key={prediction.id}
                       prediction={prediction}
@@ -673,14 +674,17 @@ export default function Dashboard() {
                     />
                   ))}
                 </div>
-                {predictions.length > 5 && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setLocation("/predictions")}
-                  >
-                    View All Predictions
-                  </Button>
+                {predictions.length > 6 && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="outline"
+                      className="px-8"
+                      onClick={() => setLocation("/predictions")}
+                    >
+                      View All {predictions.length} Predictions
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
             )}
