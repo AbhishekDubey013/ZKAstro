@@ -331,12 +331,16 @@ export default function RequestDetail() {
                           Key Highlights
                         </h4>
                         <ul className="space-y-1 text-sm">
-                          {highlightsList.map((highlight, idx) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <span className="text-primary mt-0.5">•</span>
-                              <span>{highlight.replace(/^-\s*/, '')}</span>
-                            </li>
-                          ))}
+                          {highlightsList.map((highlight, idx) => {
+                            // Remove any existing bullet points or dashes from the start
+                            const cleanHighlight = highlight.replace(/^[•\-\*]\s*/, '').trim();
+                            return (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="text-primary mt-0.5">•</span>
+                                <span>{cleanHighlight}</span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     )}
