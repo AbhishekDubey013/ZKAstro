@@ -4,8 +4,11 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
-// CORS configuration - allow Vercel frontend and localhost
+// CORS configuration - allow frontend domains
 app.use((req, res, next) => {
+  // Get allowed origins from environment or use defaults
+  const envOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
+  
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5000',
@@ -13,7 +16,13 @@ app.use((req, res, next) => {
     'https://zk-astro-tyvk6x8as-abhisheks-projects-74a6b2ad.vercel.app',
     'https://zk-astro-3prdzov0y-abhisheks-projects-74a6b2ad.vercel.app',
     // Allow any vercel.app domain
-    /https:\/\/.*\.vercel\.app$/
+    /https:\/\/.*\.vercel\.app$/,
+    // Allow any railway.app domain
+    /https:\/\/.*\.railway\.app$/,
+    // Allow astrolabes.xyz domain
+    /https:\/\/.*\.astrolabes\.xyz$/,
+    // Add environment-specified origins
+    ...envOrigins
   ];
   
   const origin = req.headers.origin;
