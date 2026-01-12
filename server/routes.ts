@@ -272,7 +272,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // GET /api/chart/:chartId/today-prediction - Get or create today's prediction
-  app.get("/api/chart/:chartId/today-prediction", async (req, res) => {
+  app.get("/api/chart/:chartId/today-prediction",
+    // X402 payment middleware - require payment when creating new predictions
+    async (req, res, next) => {
+      const isTestnet = process.env.NODE_ENV !== 'production';
+      
+      // Check if prediction already exists (no payment needed for existing)
+      try {
+        const { chartId } = req.params;
+        const today = DateTime.now().toUTC().startOf("day").toJSDate();
+        const existingRequest = await storage.getPredictionRequestByChartAndDate(chartId, today);
+        
+        if (existingRequest) {
+          // Prediction already exists - no payment needed, just return it
+          console.log('✅ Prediction already exists, skipping payment');
+          return next();
+        }
+        
+        // New prediction needs payment
+        console.log('💰 New prediction requires payment');
+        
+        // On testnet: skip payment by default
+        if (isTestnet && !req.query?.requirePayment) {
+          console.log('⚠️ Testnet mode: Skipping X402 payment');
+          return next();
+        }
+        
+        // Production: require payment
+        const userWallet = req.query.walletAddress as string;
+        return x402PaymentRequired(async () => await getAgentPaymentRecipients(userWallet))(req, res, next);
+      } catch (error) {
+        console.error('Error checking existing prediction:', error);
+        return next(); // Continue on error
+      }
+    },
+    async (req, res) => {
     try {
       const { chartId } = req.params;
       const userId = (req as any).user?.claims?.sub || req.query.privyUserId || null;
