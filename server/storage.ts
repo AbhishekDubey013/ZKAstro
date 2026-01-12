@@ -118,13 +118,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserReputation(userId: string, delta: number): Promise<User | undefined> {
-    const user = await this.getUser(userId);
-    if (!user) return undefined;
+    let user = await this.getUser(userId);
+    
+    // If user doesn't exist, create them first (for wallet-based users)
+    if (!user) {
+      console.log(`Creating new user for wallet: ${userId}`);
+      user = await this.upsertUser({
+        id: userId,
+        email: null,
+        firstName: null,
+        lastName: null,
+        profileImageUrl: null,
+      });
+    }
+    
+    if (!user) {
+      console.error(`Failed to create/get user: ${userId}`);
+      return undefined;
+    }
+    
+    const newReputation = Math.max(0, (user.reputation || 0) + delta);
+    console.log(`Updating user ${userId} reputation: ${user.reputation || 0} + ${delta} = ${newReputation}`);
     
     const [updated] = await db
       .update(users)
       .set({ 
-        reputation: Math.max(0, user.reputation + delta),
+        reputation: newReputation,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))

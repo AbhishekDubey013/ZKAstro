@@ -76,16 +76,23 @@ export function calculateDayScore(
   // Find all aspects between transit planets and natal points
   const aspects = findAspects(transitChart.planets, natalChart.planets, natalChart.asc);
 
-  // Score benefic aspects
+  // Increased point values for more score variance (was 3, now 8)
+  const BENEFIC_POINTS = 8;
+  const SUNMOON_POINTS = 5;
+  const MALEFIC_POINTS = 8;
+  const RETROGRADE_PENALTY = 5;
+  const LUNAR_POINTS = 3;
+
+  // Score benefic aspects (Jupiter/Venus harmonious = very positive)
   const beneficAspects = aspects.filter(
     (a) => isBenefic(a.transitPlanet) && isHarmoniousAspect(a.type)
   );
   beneficAspects.forEach((aspect) => {
-    score += 3 * aggressiveness;
+    score += BENEFIC_POINTS * aggressiveness;
     factors.push(`${formatPlanet(aspect.transitPlanet)} ${formatAspect(aspect.type)} ${formatPoint(aspect.natalPoint)}`);
   });
 
-  // Score harmonious Sun/Moon aspects
+  // Score harmonious Sun/Moon aspects (luminaries = important)
   const sunMoonAspects = aspects.filter(
     (a) =>
       (a.transitPlanet === 'sun' || a.transitPlanet === 'moon') &&
@@ -93,24 +100,56 @@ export function calculateDayScore(
   );
   sunMoonAspects.forEach((aspect) => {
     if (!beneficAspects.some(ba => ba.transitPlanet === aspect.transitPlanet && ba.natalPoint === aspect.natalPoint)) {
-      score += 2 * aggressiveness;
+      score += SUNMOON_POINTS * aggressiveness;
       factors.push(`${formatPlanet(aspect.transitPlanet)} ${formatAspect(aspect.type)} ${formatPoint(aspect.natalPoint)}`);
     }
   });
 
-  // Score malefic hard aspects
+  // Score challenging Sun/Moon aspects (opposition, square)
+  const sunMoonChallengingAspects = aspects.filter(
+    (a) =>
+      (a.transitPlanet === 'sun' || a.transitPlanet === 'moon') &&
+      isChallengingAspect(a.type)
+  );
+  sunMoonChallengingAspects.forEach((aspect) => {
+    score -= SUNMOON_POINTS * aggressiveness;
+    factors.push(`${formatPlanet(aspect.transitPlanet)} ${formatAspect(aspect.type)} ${formatPoint(aspect.natalPoint)} (tension)`);
+  });
+
+  // Score malefic hard aspects (Mars/Saturn squares/oppositions = challenging)
   const maleficAspects = aspects.filter(
     (a) => isMalefic(a.transitPlanet) && isChallengingAspect(a.type)
   );
   maleficAspects.forEach((aspect) => {
-    score -= 3 * aggressiveness;
+    score -= MALEFIC_POINTS * aggressiveness;
     factors.push(`${formatPlanet(aspect.transitPlanet)} ${formatAspect(aspect.type)} ${formatPoint(aspect.natalPoint)}`);
+  });
+
+  // Score benefic aspects from malefics (Saturn trine = stability, Mars trine = drive)
+  const maleficHarmoniousAspects = aspects.filter(
+    (a) => isMalefic(a.transitPlanet) && isHarmoniousAspect(a.type)
+  );
+  maleficHarmoniousAspects.forEach((aspect) => {
+    score += 4 * aggressiveness;
+    factors.push(`${formatPlanet(aspect.transitPlanet)} ${formatAspect(aspect.type)} ${formatPoint(aspect.natalPoint)} (constructive)`);
   });
 
   // Mercury retrograde penalty
   if (transitChart.retro.mercury) {
-    score -= 2 * aggressiveness;
+    score -= RETROGRADE_PENALTY * aggressiveness;
     factors.push('Mercury retrograde');
+  }
+
+  // Venus retrograde affects relationships/values
+  if (transitChart.retro.venus) {
+    score -= 3 * aggressiveness;
+    factors.push('Venus retrograde');
+  }
+
+  // Mars retrograde affects energy/action
+  if (transitChart.retro.mars) {
+    score -= 3 * aggressiveness;
+    factors.push('Mars retrograde');
   }
 
   // Lunar phase bonus/penalty (using SunCalc for accurate results)
@@ -120,16 +159,36 @@ export function calculateDayScore(
   const isSpecialPhase = lunarPhase.phase === 'Full Moon' || lunarPhase.phase === 'New Moon' || 
                           lunarPhase.phase === 'First Quarter' || lunarPhase.phase === 'Last Quarter';
   
-  if (lunarPhase.isWaxing) {
-    score += 1;
+  // Full Moon = peak energy, New Moon = new beginnings
+  if (lunarPhase.phase === 'Full Moon') {
+    score += LUNAR_POINTS * 2;
+    factors.push('Full Moon (peak energy)');
+  } else if (lunarPhase.phase === 'New Moon') {
+    score += LUNAR_POINTS;
+    factors.push('New Moon (fresh starts)');
+  } else if (lunarPhase.isWaxing) {
+    score += LUNAR_POINTS;
     factors.push(isSpecialPhase ? lunarPhase.phase : `${lunarPhase.phase} (waxing)`);
   } else {
-    score -= 1;
+    score -= LUNAR_POINTS;
     factors.push(isSpecialPhase ? lunarPhase.phase : `${lunarPhase.phase} (waning)`);
   }
 
+  // Add base variance based on day of week (subtle influence)
+  if (targetDate) {
+    const dayOfWeek = targetDate.getDay();
+    // Sunday (Sun day) and Friday (Venus day) slightly favorable
+    if (dayOfWeek === 0 || dayOfWeek === 5) {
+      score += 2;
+    }
+    // Saturday (Saturn day) slightly challenging
+    if (dayOfWeek === 6) {
+      score -= 2;
+    }
+  }
+
   // Clamp score to 0-100 range
-  score = Math.max(0, Math.min(100, score));
+  score = Math.max(0, Math.min(100, Math.round(score)));
 
   return { score, factors };
 }
