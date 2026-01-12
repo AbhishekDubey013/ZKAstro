@@ -19,7 +19,9 @@ app.use((req, res, next) => {
     /https:\/\/.*\.vercel\.app$/,
     // Allow any railway.app domain
     /https:\/\/.*\.railway\.app$/,
-    // Allow astrolabes.xyz domain
+    // Allow astrolabes.xyz domain (with and without www)
+    'https://astrolabes.xyz',
+    'https://www.astrolabes.xyz',
     /https:\/\/.*\.astrolabes\.xyz$/,
     // Add environment-specified origins
     ...envOrigins
