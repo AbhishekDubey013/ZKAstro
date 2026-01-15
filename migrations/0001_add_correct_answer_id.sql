@@ -4,3 +4,5 @@
 ALTER TABLE "zkastro"."prediction_requests" ADD COLUMN "correct_answer_id" varchar;
 
 
+
+

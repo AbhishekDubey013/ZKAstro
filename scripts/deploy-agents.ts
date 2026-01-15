@@ -47,8 +47,7 @@ async function deployAllAgents() {
         isActive: true,
       }).returning();
 
-      // TODO: Store on-chain address in a new column
-      // For now, log it
+      // On-chain address stored in contractAddress column
       console.log(`\n✅ ${config.handle} deployed successfully!`);
       console.log(`   DB ID: ${agent.id}`);
       console.log(`   Contract: ${deployed.contractAddress}`);

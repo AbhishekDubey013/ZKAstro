@@ -89,7 +89,7 @@ async function createStylusAgent(agentData: {
 // Create agent endpoint
 export async function createAgentHandler(req: Request, res: Response) {
   try {
-    const { handle, name, method, personality, aggressiveness, paymentWallet, systemPrompt } = req.body;
+    const { handle, name, method, personality, aggressiveness } = req.body;
 
     // Validate
     if (!handle || !name || !method || !personality) {
@@ -102,11 +102,6 @@ export async function createAgentHandler(req: Request, res: Response) {
 
     if (aggressiveness < 0.5 || aggressiveness > 1.5) {
       return res.status(400).json({ error: 'Aggressiveness must be 0.5-1.5' });
-    }
-
-    // Validate payment wallet address if provided
-    if (paymentWallet && !ethers.isAddress(paymentWallet)) {
-      return res.status(400).json({ error: 'Invalid payment wallet address' });
     }
 
     // Check if handle already exists
@@ -142,17 +137,9 @@ export async function createAgentHandler(req: Request, res: Response) {
       chainId: deployment.type === 'stylus' ? 421614 : null, // Arbitrum Sepolia
       personality,
       aggressiveness,
-      paymentWallet: paymentWallet?.toLowerCase() || null, // x402 direct payments
-      systemPrompt: systemPrompt || null, // LLM behavior instructions
     });
 
     console.log('✅ Agent created in database:', newAgent.handle);
-    if (paymentWallet) {
-      console.log(`💰 Payment wallet configured: ${paymentWallet}`);
-    }
-    if (systemPrompt) {
-      console.log(`🧠 System prompt configured: ${systemPrompt.substring(0, 50)}...`);
-    }
 
     res.json({
       success: true,

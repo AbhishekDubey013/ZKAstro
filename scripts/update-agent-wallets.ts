@@ -1,110 +1,49 @@
 /**
- * Update Agent Wallets Script
- * 
- * Updates existing agents in the database with their payment wallet addresses.
- * Run this after setting AURIGA_WALLET_ADDRESS and NOVA_WALLET_ADDRESS in .env
- * 
- * Usage: npx tsx --env-file=.env scripts/update-agent-wallets.ts
+ * Update agent wallet addresses to proper testnet addresses
  */
+import { db } from "../server/db";
+import { agents } from "../shared/schema";
+import { eq, sql } from "drizzle-orm";
 
-import { db } from '../server/db';
-import { agents } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+// Generate deterministic wallet addresses for agents
+// Using well-known test addresses that work on any EVM network
+const AGENT_WALLET_ADDRESSES = [
+  "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", // Standard test account
+  "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", // Standard test account
+];
 
 async function updateAgentWallets() {
-  console.log('🔧 Updating agent wallets...\n');
+  console.log("Updating agent payment wallets...\n");
 
-  // Get wallet addresses from environment
-  const aurigaWallet = process.env.AURIGA_WALLET_ADDRESS?.toLowerCase();
-  const novaWallet = process.env.NOVA_WALLET_ADDRESS?.toLowerCase();
+  // Get all active agents using raw query to handle schema
+  const activeAgents = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.isActive, true));
 
-  if (!aurigaWallet && !novaWallet) {
-    console.error('❌ No agent wallet addresses found in environment!');
-    console.log('\nPlease set the following in your .env file:');
-    console.log('  AURIGA_WALLET_ADDRESS=0x...');
-    console.log('  NOVA_WALLET_ADDRESS=0x...');
-    process.exit(1);
+  console.log(`Found ${activeAgents.length} active agents\n`);
+
+  for (let i = 0; i < activeAgents.length; i++) {
+    const agent = activeAgents[i];
+    const walletAddress = AGENT_WALLET_ADDRESSES[i % AGENT_WALLET_ADDRESSES.length];
+
+    // Update agent with wallet address
+    await db
+      .update(agents)
+      .set({
+        paymentWallet: walletAddress,
+        chainId: 421614, // Arbitrum Sepolia
+      })
+      .where(eq(agents.id, agent.id));
+
+    console.log(`✅ ${agent.name || agent.handle}: ${walletAddress}`);
   }
 
-  const results: Array<{ handle: string; wallet: string | null; status: string }> = [];
-
-  // Update @auriga
-  if (aurigaWallet) {
-    try {
-      const [updated] = await db
-        .update(agents)
-        .set({ paymentWallet: aurigaWallet })
-        .where(eq(agents.handle, '@auriga'))
-        .returning();
-      
-      if (updated) {
-        results.push({ handle: '@auriga', wallet: aurigaWallet, status: '✅ Updated' });
-      } else {
-        results.push({ handle: '@auriga', wallet: aurigaWallet, status: '⚠️ Not found in DB' });
-      }
-    } catch (error: any) {
-      results.push({ handle: '@auriga', wallet: aurigaWallet, status: `❌ Error: ${error.message}` });
-    }
-  } else {
-    results.push({ handle: '@auriga', wallet: null, status: '⏭️ Skipped (no wallet set)' });
-  }
-
-  // Update @nova
-  if (novaWallet) {
-    try {
-      const [updated] = await db
-        .update(agents)
-        .set({ paymentWallet: novaWallet })
-        .where(eq(agents.handle, '@nova'))
-        .returning();
-      
-      if (updated) {
-        results.push({ handle: '@nova', wallet: novaWallet, status: '✅ Updated' });
-      } else {
-        results.push({ handle: '@nova', wallet: novaWallet, status: '⚠️ Not found in DB' });
-      }
-    } catch (error: any) {
-      results.push({ handle: '@nova', wallet: novaWallet, status: `❌ Error: ${error.message}` });
-    }
-  } else {
-    results.push({ handle: '@nova', wallet: null, status: '⏭️ Skipped (no wallet set)' });
-  }
-
-  // Print results
-  console.log('Results:\n');
-  console.log('┌─────────────┬──────────────────────────────────────────────┬────────────────────────────┐');
-  console.log('│ Agent       │ Wallet Address                               │ Status                     │');
-  console.log('├─────────────┼──────────────────────────────────────────────┼────────────────────────────┤');
-  
-  for (const r of results) {
-    const handlePad = r.handle.padEnd(11);
-    const walletPad = (r.wallet || 'N/A').padEnd(44);
-    const statusPad = r.status.padEnd(26);
-    console.log(`│ ${handlePad} │ ${walletPad} │ ${statusPad} │`);
-  }
-  
-  console.log('└─────────────┴──────────────────────────────────────────────┴────────────────────────────┘');
-
-  // Verify updates
-  console.log('\n📋 Current agent wallet status:\n');
-  
-  const allAgents = await db.select().from(agents);
-  
-  for (const agent of allAgents) {
-    const walletStatus = agent.paymentWallet 
-      ? `💰 ${agent.paymentWallet}`
-      : '⚠️ No wallet configured (will use platform wallet)';
-    console.log(`  ${agent.handle}: ${walletStatus}`);
-  }
-
-  console.log('\n✅ Done!');
-  console.log('\nℹ️  x402 payments will now route directly to agent wallets.');
-  console.log('   Agents without wallets will have payments go to PLATFORM_WALLET or RECEIVER_ADDRESS.');
+  console.log("\nDone!");
+  process.exit(0);
 }
 
-updateAgentWallets()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error('❌ Fatal error:', error);
-    process.exit(1);
-  });
+updateAgentWallets().catch((error) => {
+  console.error("Error:", error);
+  process.exit(1);
+});

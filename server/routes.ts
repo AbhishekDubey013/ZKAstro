@@ -8,8 +8,8 @@ import { DateTime } from "luxon";
 import crypto from "crypto";
 import { calculatePlanetaryPositions } from "../lib/astro/planets";
 import { calculateAscendant } from "../lib/astro/equalHouses";
-import { generateAgentPrediction } from "../lib/agents/generatePrediction";
-import { x402PaymentRequired, x402PaymentOptional, X402_CONFIG } from "./x402-middleware";
+import { generateAurigaPrediction } from "../lib/agents/agentA";
+import { generateNovaPrediction } from "../lib/agents/agentB";
 import {
   createChartRequestSchema,
   createChartZKRequestSchema,
@@ -81,18 +81,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/charts - Get all charts for authenticated user
   app.get("/api/charts", isAuthenticated, async (req: any, res) => {
     try {
-      // Get userId from session OR from query parameter (wallet address)
-      let userId = req.user?.claims?.sub || req.query.walletAddress || req.query.privyUserId || null;
-      
-      // Normalize wallet address to lowercase for consistent matching
-      if (userId && userId.startsWith('0x')) {
-        userId = userId.toLowerCase();
-      }
+      // Get userId from session OR from query parameter (Privy wallet address)
+      let userId = req.user?.claims?.sub || req.query.privyUserId || null;
       
       if (userId) {
+        // Filter charts by user ID (works for both Replit and Privy auth)
         const charts = await storage.getChartsByUserId(userId);
         res.json(charts);
       } else {
+        // No user context - return empty array for security
         console.warn("⚠️ No userId provided for /api/charts - returning empty array");
         res.json([]);
       }
@@ -118,13 +115,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/chart - Create a new natal chart (ZK MODE ONLY - Maximum Privacy)
   app.post("/api/chart", async (req, res) => {
     try {
-      // Get userId from session OR from request body (wallet address)
-      let userId = (req as any).user?.claims?.sub || req.body.walletAddress || req.body.privyUserId || null;
-      
-      // Normalize wallet address to lowercase for consistent matching
-      if (userId && userId.startsWith('0x')) {
-        userId = userId.toLowerCase();
-      }
+      // Get userId from session OR from request body (Privy wallet address)
+      let userId = (req as any).user?.claims?.sub || req.body.privyUserId || null;
       
       // ZK MODE ONLY: Client MUST provide pre-calculated positions + cryptographic proof
       // Server NEVER sees raw birth data - maximum privacy!
@@ -136,34 +128,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Parse and validate ZK request
-      let zkBody: CreateChartZKRequest;
-      try {
-        zkBody = createChartZKRequestSchema.parse(req.body);
-      } catch (error: any) {
-        console.error("❌ Chart creation validation error:", error);
-        console.error("Request body:", JSON.stringify(req.body, null, 2));
-        return res.status(400).json({
-          error: "Validation failed",
-          message: error.errors?.[0]?.message || error.message || "Invalid request format",
-          details: error.errors || error
-        });
-      }
+      const zkBody: CreateChartZKRequest = createChartZKRequestSchema.parse(req.body);
 
       // Ensure user exists in database (create if needed for Privy users)
       if (userId) {
-        try {
-          await storage.ensureUser(userId);
-        } catch (dbError: any) {
-          console.error("❌ Database error ensuring user:", dbError);
-          // If database is not available, we can still proceed but log the error
-          if (dbError.message?.includes("DATABASE_URL") || dbError.message?.includes("connection")) {
-            return res.status(503).json({
-              error: "Database unavailable",
-              message: "The database connection is not configured. Please set a valid DATABASE_URL in your .env file."
-            });
-          }
-          throw dbError; // Re-throw if it's a different error
-        }
+        await storage.ensureUser(userId);
       }
 
         // VERIFY ZK PROOF using Poseidon hash (cryptographically sound)
@@ -179,8 +148,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mc: zkBody.params.mc
           }
         );
-        
-        console.log(`🔐 ZK Proof verification result: ${isValid ? '✅ VALID' : '❌ INVALID'}`);
 
         if (!isValid) {
           return res.status(400).json({
@@ -238,78 +205,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         });
       } catch (error: any) {
-        console.error("❌ Error creating ZK chart:", error);
-        console.error("Error stack:", error.stack);
+        console.error("Error creating ZK chart:", error);
         
-        // Check if it's a database connection error
-        if (error.message?.includes("DATABASE_URL") || 
-            error.message?.includes("connection") || 
-            error.message?.includes("ECONNREFUSED") ||
-            error.message?.includes("connect")) {
-          return res.status(503).json({ 
-            error: "Database unavailable",
-            message: "The database connection is not configured. Please set a valid DATABASE_URL in your .env file."
-          });
-        }
-        
-        // Check if it's a validation/parse error
-        if (error.message?.includes("parse") || error.name === "ZodError") {
+        // Provide helpful error messages
+        if (error.message?.includes("parse")) {
           return res.status(400).json({ 
             error: "Invalid chart data",
-            message: error.errors?.[0]?.message || error.message || "Please ensure all required fields are provided and in the correct format.",
-            details: error.errors || error
+            message: "Please ensure all required fields are provided and in the correct format."
           });
         }
         
-        // Return the actual error message
         res.status(400).json({ 
           error: error.message || "Failed to create chart",
-          message: error.message || "Chart creation failed. Please try again.",
-          details: process.env.NODE_ENV === "development" ? error.stack : undefined
+          message: "Chart creation failed. Please try again."
         });
       }
     });
 
 
   // GET /api/chart/:chartId/today-prediction - Get or create today's prediction
-  app.get("/api/chart/:chartId/today-prediction",
-    // X402 payment middleware - require payment when creating new predictions
-    async (req, res, next) => {
-      const isTestnet = process.env.NODE_ENV !== 'production';
-      
-      // Check if prediction already exists (no payment needed for existing)
-      try {
-        const { chartId } = req.params;
-        const today = DateTime.now().toUTC().startOf("day").toJSDate();
-        const existingRequest = await storage.getPredictionRequestByChartAndDate(chartId, today);
-        
-        if (existingRequest) {
-          // Prediction already exists - no payment needed, just return it
-          console.log('✅ Prediction already exists, skipping payment');
-          return next();
-        }
-        
-        // New prediction needs payment
-        console.log('💰 New prediction requires payment');
-        
-        // On testnet: skip payment by default
-        if (isTestnet && !req.query?.requirePayment) {
-          console.log('⚠️ Testnet mode: Skipping X402 payment');
-          return next();
-        }
-        
-        // Production: require payment
-        const userWallet = req.query.walletAddress as string;
-        return x402PaymentRequired(async () => await getAgentPaymentRecipients(userWallet))(req, res, next);
-      } catch (error) {
-        console.error('Error checking existing prediction:', error);
-        return next(); // Continue on error
-      }
-    },
-    async (req, res) => {
+  app.get("/api/chart/:chartId/today-prediction", async (req, res) => {
     try {
       const { chartId } = req.params;
-      const userId = (req as any).user?.claims?.sub || req.query.privyUserId || null;
 
       // Get the chart
       const chart = await storage.getChart(chartId);
@@ -325,16 +242,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If no prediction exists for today, create one
       if (!request) {
-        const defaultQuestion = "What does today hold for me?";
         request = await storage.createPredictionRequest({
-          userId: userId,
+          userId: null,
           chartId: chartId,
-          question: defaultQuestion,
+          question: "What does today hold for me?",
           targetDate: today,
         });
 
         // Generate predictions asynchronously
-        generatePredictionsAsync(request.id, chart, today, defaultQuestion);
+        generatePredictionsAsync(request.id, chart, today);
       }
 
       res.json({ requestId: request.id, created: !request });
@@ -344,125 +260,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Helper function to get payment recipients (agents with wallets)
-  // x402 Direct Payments: Routes payments directly to agent wallets
-  async function getAgentPaymentRecipients(userWallet?: string) {
-    const allAgents = await storage.getAllActiveAgents();
-    const selectedAgents = selectAgents(allAgents, 2);
-    
-    // Fallback platform wallet (only used if agent has no wallet configured)
-    const envWallet = process.env.RECEIVER_ADDRESS || process.env.PLATFORM_WALLET;
-    const PLATFORM_WALLET = envWallet?.toLowerCase() || '0x000000000000000000000000000000000000dead';
-    
-    // Build recipients list - each agent with a wallet gets paid directly
-    const recipients: Array<{ address: string; amount: string; agentId: string }> = [];
-    
-    for (const agent of selectedAgents) {
-      // Get wallet from database or fall back to env variable
-      let agentWallet = agent.paymentWallet;
-      
-      // If no wallet in DB, try env variables as fallback
-      if (!agentWallet) {
-        if (agent.handle === '@auriga') {
-          agentWallet = process.env.AURIGA_WALLET_ADDRESS?.toLowerCase();
-        } else if (agent.handle === '@nova') {
-          agentWallet = process.env.NOVA_WALLET_ADDRESS?.toLowerCase();
-        }
-      }
-      
-      // Use agent wallet if available, otherwise platform wallet
-      const paymentAddress = agentWallet || PLATFORM_WALLET;
-      
-      recipients.push({
-        address: paymentAddress,
-        amount: X402_CONFIG.amountPerAgent, // Per-agent amount
-        agentId: agent.id,
-      });
-      
-      console.log(`💰 Payment recipient: ${agent.handle} → ${paymentAddress} (${X402_CONFIG.amountPerAgent} ETH)`);
-    }
-    
-    // If no agents selected, use platform as fallback
-    if (recipients.length === 0) {
-      recipients.push({
-        address: PLATFORM_WALLET,
-        amount: X402_CONFIG.amountPerPrediction,
-        agentId: 'platform',
-      });
-    }
-    
-    return recipients;
-  }
-
-  // POST /api/request/paid - Create prediction WITH payment (for testing X402)
-  app.post("/api/request/paid",
-    // Always require X402 payment on this route
-    async (req, res, next) => {
-      console.log('💰 /api/request/paid - X402 payment REQUIRED');
-      console.log('Request body:', JSON.stringify(req.body));
-      const userWallet = req.body?.walletAddress;
-      return x402PaymentRequired(async () => await getAgentPaymentRecipients(userWallet))(req, res, next);
-    },
-    async (req, res) => {
-      // Same handler as /api/request - just forward to it
-      try {
-        const body: CreatePredictionRequest = createPredictionRequestSchema.parse(req.body);
-        const chart = await storage.getChart(body.chartId);
-        if (!chart) {
-          return res.status(404).json({ error: "Chart not found" });
-        }
-
-        const targetDateStr = body.targetDate || DateTime.now().toFormat("yyyy-MM-dd");
-        const targetDate = DateTime.fromFormat(targetDateStr, "yyyy-MM-dd", { zone: "utc" })
-          .startOf("day")
-          .toJSDate();
-
-        const x402Payment = (req as any).x402Payment;
-        
-        const request = await storage.createPredictionRequest({
-          userId: req.body.walletAddress || null,
-          chartId: body.chartId,
-          question: body.question,
-          targetDate,
-        });
-
-        generatePredictionsAsync(request.id, chart, targetDate, body.question);
-
-        res.json({ 
-          requestId: request.id,
-          x402: x402Payment ? {
-            paid: true,
-            paymentId: x402Payment.paymentId,
-            txHashes: x402Payment.txHashes,
-          } : null,
-        });
-      } catch (error: any) {
-        console.error("Error creating paid prediction:", error);
-        res.status(500).json({ error: error.message || "Failed to create prediction" });
-      }
-    }
-  );
-
-  // POST /api/request - Create a prediction request (free on testnet)
-  app.post("/api/request", 
-    // X402 middleware - skip on testnet by default
-    async (req, res, next) => {
-      const isTestnet = process.env.NODE_ENV !== 'production';
-      
-      console.log(`X402 check: isTestnet=${isTestnet}, body.requirePayment=${req.body?.requirePayment}`);
-      
-      // On testnet: skip payment by default (unless explicitly required)
-      if (isTestnet && !req.body?.requirePayment) {
-        console.log('⚠️ Testnet mode: Skipping X402 payment (use /api/request/paid to test)');
-        return next();
-      }
-      
-      // Production or testnet with requirePayment: always require payment
-      console.log('💰 Applying X402 payment middleware');
-      const userWallet = req.body?.walletAddress;
-      return x402PaymentRequired(async () => await getAgentPaymentRecipients(userWallet))(req, res, next);
-    },
-    async (req, res) => {
+  // POST /api/request - Create a prediction request
+  app.post("/api/request", async (req, res) => {
     try {
       const body: CreatePredictionRequest = createPredictionRequestSchema.parse(req.body);
 
@@ -478,31 +277,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .startOf("day")
         .toJSDate();
 
-      // Check if payment was made via X402
-      const x402Payment = (req as any).x402Payment;
-      
       // Create prediction request
       const request = await storage.createPredictionRequest({
-        userId: (req as any).user?.claims?.sub || req.body.walletAddress || req.body.privyUserId || null,
+        userId: null,
         chartId: body.chartId,
         question: body.question,
         targetDate,
       });
 
       // Generate predictions asynchronously (don't wait)
-      generatePredictionsAsync(request.id, chart, targetDate, body.question);
+      generatePredictionsAsync(request.id, chart, targetDate);
 
-      res.json({ 
-        requestId: request.id,
-        x402: x402Payment ? {
-          paid: true,
-          paymentId: x402Payment.paymentId,
-          txHashes: x402Payment.txHashes,
-        } : {
-          paid: false,
-          note: 'Prediction created without payment (testnet mode)',
-        },
-      });
+      res.json({ requestId: request.id });
     } catch (error: any) {
       console.error("Error creating request:", error);
       res.status(400).json({ error: error.message || "Failed to create request" });
@@ -542,8 +328,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           targetDate: request.targetDate,
           status: request.status,
           selectedAnswerId: request.selectedAnswerId,
-          correctAnswerId: request.correctAnswerId,
-          chartId: request.chartId,
         },
         chart: chart ? {
           id: chart.id,
@@ -557,8 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/request/:id/select - Select correct prediction (FINAL - cannot be changed)
-  // User earns points for voting, agents get +1/-1 reputation
+  // POST /api/request/:id/select - Select winning prediction
   app.post("/api/request/:id/select", async (req, res) => {
     try {
       const body: SelectAnswerRequest = selectAnswerSchema.parse(req.body);
@@ -568,17 +351,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Request not found" });
       }
 
-      // 🚫 VOTES ARE FINAL - Check if already voted
-      if (request.status === "SETTLED" || request.correctAnswerId) {
-        return res.status(400).json({ 
-          error: "Vote already recorded",
-          message: "This prediction has already been voted on. Votes are final and cannot be changed.",
-          alreadyVoted: true,
-          correctAnswerId: request.correctAnswerId,
-        });
+      if (request.status === "SETTLED") {
+        return res.status(400).json({ error: "Request already settled" });
       }
 
-      // Get all answers for this request
+      // Get the selected answer
       const answers = await storage.getAnswersByRequestId(request.id);
       const selectedAnswer = answers.find(a => a.id === body.answerId);
       
@@ -586,56 +363,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Answer not found" });
       }
 
-      // Find the losing answer(s)
-      const losingAnswers = answers.filter(a => a.id !== body.answerId);
-
-      // Get user ID for awarding points
-      const userId = (req as any).user?.claims?.sub || req.body.walletAddress || req.body.privyUserId || null;
-
-      // Update request with correct answer (FINAL)
-      await storage.updatePredictionRequestCorrectAnswer(request.id, body.answerId);
+      // Update request status
       await storage.updatePredictionRequestStatus(request.id, "SETTLED", body.answerId);
 
-      // Update winner agent reputation (+1)
+      // Update agent reputation
       await storage.updateAgentReputation(selectedAnswer.agentId, 1);
+
+      // Create reputation event
       await storage.createReputationEvent({
         agentId: selectedAnswer.agentId,
         requestId: request.id,
         delta: 1,
       });
 
-      // Update loser agent reputation (-1) for each losing agent
-      for (const loser of losingAnswers) {
-        await storage.updateAgentReputation(loser.agentId, -1);
-        await storage.createReputationEvent({
-          agentId: loser.agentId,
-          requestId: request.id,
-          delta: -1,
-        });
-      }
-
-      // 🏆 AWARD USER POINTS for voting
-      let userPointsAwarded = 0;
-      let userNewTotal = 0;
-      if (userId) {
-        // Award 10 points for voting on a prediction
-        const POINTS_FOR_VOTING = 10;
-        const updatedUser = await storage.updateUserReputation(userId, POINTS_FOR_VOTING);
-        if (updatedUser) {
-          userPointsAwarded = POINTS_FOR_VOTING;
-          userNewTotal = updatedUser.reputation;
-          console.log(`🏆 User ${userId} earned ${POINTS_FOR_VOTING} points! Total: ${userNewTotal}`);
-        }
-      }
-
       // 🔗 RECORD ON-CHAIN: Agent selection for transparent scoring
       // This makes agent reputation immutable and verifiable
+      // Note: Agent reputation uses separate contract (not Stylus yet)
+      const userId = (req as any).user?.claims?.sub || null;
       const onChainTxHash = await import('../lib/blockchain/onchain-registry.js')
         .then(module => module.recordAgentSelectionOnChain(
           selectedAnswer.agentId,
           request.id,
           userId,
-          1 // reputation bonus for winner
+          1 // reputation bonus
         ))
         .catch(err => {
           console.error('⚠️  On-chain reputation update failed (non-blocking):', err.message);
@@ -644,19 +394,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         ok: true,
-        voteFinal: true, // Indicates vote cannot be changed
-        userPoints: {
-          awarded: userPointsAwarded,
-          newTotal: userNewTotal,
-        },
-        winner: {
-          agentId: selectedAnswer.agentId,
-          delta: 1,
-        },
-        losers: losingAnswers.map(l => ({
-          agentId: l.agentId,
-          delta: -1,
-        })),
         onChain: onChainTxHash ? {
           recorded: true,
           txHash: onChainTxHash,
@@ -670,70 +407,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error selecting answer:", error);
       res.status(400).json({ error: error.message || "Failed to select answer" });
-    }
-  });
-
-  // GET /api/user/predictions - Get all predictions for the current user
-  app.get("/api/user/predictions", async (req, res) => {
-    try {
-      // Get userId from session OR from query parameter (wallet address)
-      let userId = (req as any).user?.claims?.sub || req.query.walletAddress || req.query.privyUserId || null;
-      
-      if (!userId) {
-        return res.status(401).json({ error: "User not authenticated" });
-      }
-
-      // Normalize wallet address to lowercase for consistent matching
-      if (userId && userId.startsWith('0x')) {
-        userId = userId.toLowerCase();
-      }
-
-      console.log(`📊 Fetching predictions for userId: ${userId}`);
-
-      // Get all prediction requests for this user
-      const requests = await storage.getPredictionsByUserId(userId);
-      
-      console.log(`📊 Found ${requests.length} prediction requests`);
-      
-      // Enrich with answers and agent info
-      const enrichedRequests = await Promise.all(
-        requests.map(async (request) => {
-          const answers = await storage.getAnswersByRequestId(request.id);
-          const enrichedAnswers = await Promise.all(
-            answers.map(async (answer) => {
-              const agent = await storage.getAgent(answer.agentId);
-              return {
-                id: answer.id,
-                agentId: answer.agentId,
-                summary: answer.summary,
-                dayScore: answer.dayScore,
-                agent: agent ? {
-                  handle: agent.handle,
-                  reputation: agent.reputation,
-                } : null,
-              };
-            })
-          );
-          
-          return {
-            id: request.id,
-            question: request.question,
-            targetDate: request.targetDate,
-            status: request.status,
-            selectedAnswerId: request.selectedAnswerId,
-            correctAnswerId: request.correctAnswerId,
-            createdAt: request.createdAt,
-            answers: enrichedAnswers,
-          };
-        })
-      );
-
-      res.json(enrichedRequests);
-    } catch (error: any) {
-      console.error("Error fetching user predictions:", error);
-      console.error("Error stack:", error.stack);
-      console.error("Error getting user predictions:", error);
-      res.status(500).json({ error: error.message || "Failed to get predictions" });
     }
   });
 
@@ -863,6 +536,290 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // ERC-8004 Agent Registry Endpoints (Arbitrum Sepolia)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // GET /api/erc8004/status - Check if ERC-8004 registry is deployed
+  app.get("/api/erc8004/status", async (req, res) => {
+    try {
+      const { isERC8004Deployed, getTotalAgentsERC8004 } = await import('../lib/blockchain/onchain-registry.js');
+      
+      const deployed = isERC8004Deployed();
+      let totalAgents = null;
+      
+      if (deployed) {
+        totalAgents = await getTotalAgentsERC8004();
+      }
+      
+      res.json({
+        deployed,
+        network: 'arbitrum-sepolia',
+        contractAddress: process.env.ERC8004_REGISTRY_ADDRESS || null,
+        totalAgents,
+      });
+    } catch (error: any) {
+      console.error("Error checking ERC-8004 status:", error);
+      res.status(500).json({ error: error.message || "Failed to check ERC-8004 status" });
+    }
+  });
+
+  // GET /api/erc8004/agents/:id/profile - Get full ERC-8004 agent profile
+  app.get("/api/erc8004/agents/:id/profile", async (req, res) => {
+    try {
+      const agentId = parseInt(req.params.id);
+      
+      if (isNaN(agentId)) {
+        return res.status(400).json({ error: "Invalid agent ID" });
+      }
+
+      const { getAgentProfileERC8004 } = await import('../lib/blockchain/onchain-registry.js');
+      const profile = await getAgentProfileERC8004(agentId);
+      
+      if (!profile) {
+        return res.status(404).json({ error: "Agent not found or ERC-8004 registry not deployed" });
+      }
+      
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error getting ERC-8004 agent profile:", error);
+      res.status(500).json({ error: error.message || "Failed to get agent profile" });
+    }
+  });
+
+  // GET /api/erc8004/agents/handle/:handle - Get agent by handle
+  app.get("/api/erc8004/agents/handle/:handle", async (req, res) => {
+    try {
+      const { handle } = req.params;
+      
+      const { getAgentIdByHandle, getAgentProfileERC8004 } = await import('../lib/blockchain/onchain-registry.js');
+      const agentId = await getAgentIdByHandle(handle);
+      
+      if (!agentId || agentId === 0) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const profile = await getAgentProfileERC8004(agentId);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error getting agent by handle:", error);
+      res.status(500).json({ error: error.message || "Failed to get agent by handle" });
+    }
+  });
+
+  // GET /api/erc8004/agents/:id/credentials - Get agent credentials
+  app.get("/api/erc8004/agents/:id/credentials", async (req, res) => {
+    try {
+      const agentId = parseInt(req.params.id);
+      
+      if (isNaN(agentId)) {
+        return res.status(400).json({ error: "Invalid agent ID" });
+      }
+
+      const { getAgentCredentialsERC8004, CREDENTIAL_TYPES } = await import('../lib/blockchain/onchain-registry.js');
+      const credentials = await getAgentCredentialsERC8004(agentId);
+      
+      if (!credentials) {
+        return res.status(404).json({ error: "Agent not found or ERC-8004 registry not deployed" });
+      }
+      
+      // Decode credential types for readability
+      const decodedCredentials = credentials.map(cred => {
+        let typeName = 'UNKNOWN';
+        for (const [name, hash] of Object.entries(CREDENTIAL_TYPES)) {
+          if (cred.credentialType === hash) {
+            typeName = name;
+            break;
+          }
+        }
+        return {
+          ...cred,
+          typeName,
+        };
+      });
+      
+      res.json({
+        agentId,
+        credentials: decodedCredentials,
+        credentialTypes: CREDENTIAL_TYPES,
+      });
+    } catch (error: any) {
+      console.error("Error getting agent credentials:", error);
+      res.status(500).json({ error: error.message || "Failed to get credentials" });
+    }
+  });
+
+  // GET /api/erc8004/agents/:id/stats - Get agent stats from ERC-8004
+  app.get("/api/erc8004/agents/:id/stats", async (req, res) => {
+    try {
+      const agentId = parseInt(req.params.id);
+      
+      if (isNaN(agentId)) {
+        return res.status(400).json({ error: "Invalid agent ID" });
+      }
+
+      const { getAgentStatsERC8004 } = await import('../lib/blockchain/onchain-registry.js');
+      const stats = await getAgentStatsERC8004(agentId);
+      
+      if (!stats) {
+        return res.status(404).json({ error: "Agent not found or ERC-8004 registry not deployed" });
+      }
+      
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error getting ERC-8004 agent stats:", error);
+      res.status(500).json({ error: error.message || "Failed to get agent stats" });
+    }
+  });
+
+  // GET /api/erc8004/agents/:id/reputation-history - Get reputation history
+  app.get("/api/erc8004/agents/:id/reputation-history", async (req, res) => {
+    try {
+      const agentId = parseInt(req.params.id);
+      
+      if (isNaN(agentId)) {
+        return res.status(400).json({ error: "Invalid agent ID" });
+      }
+
+      const { getReputationHistoryERC8004 } = await import('../lib/blockchain/onchain-registry.js');
+      const history = await getReputationHistoryERC8004(agentId);
+      
+      if (!history) {
+        return res.status(404).json({ error: "Agent not found or ERC-8004 registry not deployed" });
+      }
+      
+      res.json({
+        agentId,
+        events: history,
+        totalEvents: history.length,
+      });
+    } catch (error: any) {
+      console.error("Error getting reputation history:", error);
+      res.status(500).json({ error: error.message || "Failed to get reputation history" });
+    }
+  });
+
+  // GET /api/erc8004/agents/:id/validation-history - Get validation history
+  app.get("/api/erc8004/agents/:id/validation-history", async (req, res) => {
+    try {
+      const agentId = parseInt(req.params.id);
+      
+      if (isNaN(agentId)) {
+        return res.status(400).json({ error: "Invalid agent ID" });
+      }
+
+      const { getValidationHistoryERC8004 } = await import('../lib/blockchain/onchain-registry.js');
+      const history = await getValidationHistoryERC8004(agentId);
+      
+      if (!history) {
+        return res.status(404).json({ error: "Agent not found or ERC-8004 registry not deployed" });
+      }
+      
+      res.json({
+        agentId,
+        validations: history,
+        totalValidations: history.length,
+      });
+    } catch (error: any) {
+      console.error("Error getting validation history:", error);
+      res.status(500).json({ error: error.message || "Failed to get validation history" });
+    }
+  });
+
+  // POST /api/erc8004/agents/:id/validate - Validate an agent (admin only)
+  app.post("/api/erc8004/agents/:id/validate", async (req, res) => {
+    try {
+      const { adminKey } = req.body;
+      
+      if (adminKey !== process.env.ADMIN_KEY) {
+        return res.status(403).json({ error: "Invalid admin key" });
+      }
+
+      const agentId = parseInt(req.params.id);
+      const { isValid, reason } = req.body;
+      
+      if (isNaN(agentId)) {
+        return res.status(400).json({ error: "Invalid agent ID" });
+      }
+      
+      if (typeof isValid !== 'boolean') {
+        return res.status(400).json({ error: "isValid must be a boolean" });
+      }
+
+      const { validateAgentERC8004 } = await import('../lib/blockchain/onchain-registry.js');
+      const txHash = await validateAgentERC8004(agentId, isValid, reason || '');
+      
+      if (!txHash) {
+        return res.status(500).json({ error: "Validation failed or ERC-8004 registry not deployed" });
+      }
+      
+      res.json({
+        success: true,
+        agentId,
+        isValid,
+        txHash,
+        explorer: `https://sepolia.arbiscan.io/tx/${txHash}`,
+      });
+    } catch (error: any) {
+      console.error("Error validating agent:", error);
+      res.status(500).json({ error: error.message || "Failed to validate agent" });
+    }
+  });
+
+  // POST /api/erc8004/agents/:id/credentials - Issue credential (admin only)
+  app.post("/api/erc8004/agents/:id/credentials", async (req, res) => {
+    try {
+      const { adminKey } = req.body;
+      
+      if (adminKey !== process.env.ADMIN_KEY) {
+        return res.status(403).json({ error: "Invalid admin key" });
+      }
+
+      const agentId = parseInt(req.params.id);
+      const { credentialType, value, expiresAt, proofURI } = req.body;
+      
+      if (isNaN(agentId)) {
+        return res.status(400).json({ error: "Invalid agent ID" });
+      }
+      
+      if (!credentialType || typeof value !== 'number') {
+        return res.status(400).json({ error: "credentialType and value are required" });
+      }
+
+      const { issueCredentialERC8004, CREDENTIAL_TYPES } = await import('../lib/blockchain/onchain-registry.js');
+      
+      // Map string credential type to hash if needed
+      let credTypeHash = credentialType;
+      if (CREDENTIAL_TYPES[credentialType as keyof typeof CREDENTIAL_TYPES]) {
+        credTypeHash = CREDENTIAL_TYPES[credentialType as keyof typeof CREDENTIAL_TYPES];
+      }
+      
+      const txHash = await issueCredentialERC8004(
+        agentId,
+        credTypeHash,
+        value,
+        expiresAt || 0,
+        proofURI || ''
+      );
+      
+      if (!txHash) {
+        return res.status(500).json({ error: "Credential issuance failed or ERC-8004 registry not deployed" });
+      }
+      
+      res.json({
+        success: true,
+        agentId,
+        credentialType,
+        value,
+        txHash,
+        explorer: `https://sepolia.arbiscan.io/tx/${txHash}`,
+      });
+    } catch (error: any) {
+      console.error("Error issuing credential:", error);
+      res.status(500).json({ error: error.message || "Failed to issue credential" });
+    }
+  });
+
   // Setup admin routes for agent deployment and management
   setupAdminRoutes(app);
 
@@ -878,8 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 async function generatePredictionsAsync(
   requestId: string,
   chart: any,
-  targetDate: Date,
-  question: string = "How will my day go?"
+  targetDate: Date
 ) {
   try {
     // Get active agents
@@ -903,22 +859,33 @@ async function generatePredictionsAsync(
       retro: transitRetro,
     };
 
-    // Generate predictions from selected agents using their unique systemPrompt
+    // Generate predictions from selected agents
     for (const agent of selectedAgents) {
-      // Use the generic prediction generator with agent's systemPrompt from DB
-      const prediction = await generateAgentPrediction(
-        {
-          id: agent.id,
-          handle: agent.handle,
-          aggressiveness: agent.aggressiveness,
-          systemPrompt: agent.systemPrompt, // From database - shapes unique behavior
-        },
-        natalChart,
-        transitChart,
-        question,
-        targetDate.toISOString().split('T')[0],
-        targetDate // Pass Date object for accurate moon phase
-      );
+      let prediction;
+      
+      if (agent.handle === "@auriga") {
+        prediction = await generateAurigaPrediction(
+          natalChart,
+          transitChart,
+          "How will my day go?",
+          targetDate.toISOString().split('T')[0]
+        );
+      } else if (agent.handle === "@nova") {
+        prediction = await generateNovaPrediction(
+          natalChart,
+          transitChart,
+          "How will my day go?",
+          targetDate.toISOString().split('T')[0]
+        );
+      } else {
+        // Fallback for other agents
+        prediction = await generateNovaPrediction(
+          natalChart,
+          transitChart,
+          "How will my day go?",
+          targetDate.toISOString().split('T')[0]
+        );
+      }
 
       await storage.createPredictionAnswer({
         requestId,

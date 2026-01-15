@@ -1,6 +1,6 @@
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, Sparkles, TrendingUp, Trophy, Info } from "lucide-react";
+import { Check, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Progress } from "@/components/ui/progress";
 import { PredictionChat } from "@/components/prediction-chat";
-import { useAuth } from "@/hooks/useAuth";
 
 interface RequestData {
   request: {
@@ -18,8 +17,6 @@ interface RequestData {
     targetDate: string;
     status: string;
     selectedAnswerId: string | null;
-    correctAnswerId?: string | null;
-    chartId: string;
   };
   chart: {
     id: string;
@@ -82,7 +79,6 @@ export default function RequestDetail() {
   const [, params] = useRoute("/request/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { user } = useAuth();
   const requestId = params?.id;
 
   const { data, isLoading } = useQuery<RequestData>({
@@ -94,64 +90,39 @@ export default function RequestDetail() {
     },
   });
 
-  const { walletAddress } = useAuth();
-  
   const selectAnswerMutation = useMutation({
     mutationFn: async (answerId: string) => {
       const response = await apiRequest("POST", `/api/request/${requestId}/select`, {
         answerId,
-        walletAddress: walletAddress || undefined, // Include wallet for points
       });
-      const data = await response.json();
-      
-      // Check if vote was already recorded (final)
-      if (data.alreadyVoted) {
-        throw new Error(data.message || "This prediction has already been voted on.");
-      }
-      
-      return data;
+      return await response.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/request", requestId] });
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/predictions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
-      // Show points earned notification
-      const pointsEarned = data.userPoints?.awarded || 0;
-      const totalPoints = data.userPoints?.newTotal || 0;
-      
+      // Show selection confirmation
       toast({
-        title: "🏆 Vote Recorded!",
-        description: (
-          <div className="space-y-1">
-            <p>Winner gets +1, loser gets -1 reputation</p>
-            {pointsEarned > 0 && (
-              <p className="text-emerald-500 font-semibold">
-                +{pointsEarned} points earned! (Total: {totalPoints})
-              </p>
-            )}
-            <p className="text-xs text-amber-500 font-medium mt-1">⚠️ This vote is final and cannot be changed</p>
-          </div>
-        ),
+        title: "✅ Prediction Selected!",
+        description: "Agent reputation updated in database",
       });
       
       // Show on-chain recording if successful
       if (data.onChain?.recorded) {
         setTimeout(() => {
           toast({
-            title: "⛓️ Recorded on Arbitrum Sepolia!",
+            title: "⛓️ Recorded on Base Sepolia!",
             description: (
               <div className="mt-2 space-y-2">
                 <p className="text-sm">Agent reputation update stored on blockchain</p>
                 <p className="text-xs text-muted-foreground">Transparent & immutable scoring</p>
                 <a 
-                  href={`https://sepolia.arbiscan.io/tx/${data.onChain.txHash}`}
+                  href={`https://sepolia.basescan.org/tx/${data.onChain.txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block text-xs text-blue-500 hover:text-blue-700 underline"
                 >
-                  View on Arbiscan →
+                  View on BaseScan →
                 </a>
               </div>
             ),
@@ -162,7 +133,7 @@ export default function RequestDetail() {
     },
     onError: (error: any) => {
       toast({
-        title: "Cannot Vote",
+        title: "Error selecting prediction",
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -217,7 +188,7 @@ export default function RequestDetail() {
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Sparkles className="h-8 w-8 text-violet-500 dark:text-violet-400 animate-pulse" />
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-violet-600 via-blue-600 to-teal-600 dark:from-violet-400 dark:via-blue-400 dark:to-teal-400 bg-clip-text text-transparent">
-              Prediction Results
+              Daily Prediction
             </h1>
             <Sparkles className="h-8 w-8 text-teal-500 dark:text-teal-400 animate-pulse" style={{ animationDelay: '0.5s' }} />
           </div>
@@ -226,24 +197,17 @@ export default function RequestDetail() {
             className="text-sm px-3 py-1"
             data-testid={`status-${request.status.toLowerCase()}`}
           >
-            {isSettled ? "Resolved" : request.status === "ANSWERED" ? "Awaiting Result" : request.status}
+            {request.status}
           </Badge>
-          <p className="text-lg font-medium text-gray-700 dark:text-gray-300">"{request.question}"</p>
+          <p className="text-lg font-medium text-gray-700 dark:text-gray-300">{request.question}</p>
           <p className="text-sm text-muted-foreground">
-            📅 Target: {new Date(request.targetDate).toLocaleDateString(undefined, {
+            📅 {new Date(request.targetDate).toLocaleDateString(undefined, {
               weekday: 'long',
               year: 'numeric',
               month: 'long',
               day: 'numeric',
             })}
           </p>
-          {isSettled && (
-            <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/30">
-              <span className="text-amber-600 dark:text-amber-400 text-sm font-medium">
-                🔒 Vote is final and cannot be changed
-              </span>
-            </div>
-          )}
         </div>
 
       {/* Loading State */}
@@ -264,13 +228,12 @@ export default function RequestDetail() {
         </Card>
       )}
 
-      {/* Agent Predictions - Side by Side, Centered */}
+      {/* Agent Predictions - Side by Side */}
       {answers.length >= 2 && (
         <>
-          <div className="grid lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-6">
             {answers.map((answer) => {
-              // Use correctAnswerId if available, otherwise fall back to selectedAnswerId
-              const isSelected = (request.correctAnswerId || request.selectedAnswerId) === answer.id;
+              const isSelected = request.selectedAnswerId === answer.id;
               const factorsList = answer.factors.split(';').map(f => f.trim()).filter(Boolean);
               const highlightsList = answer.highlights.split('\n').map(h => h.trim()).filter(Boolean);
 
@@ -279,15 +242,15 @@ export default function RequestDetail() {
                   key={answer.id}
                   className={`relative backdrop-blur transition-all duration-300 ${
                     isSelected 
-                      ? "border-green-500/50 bg-gradient-to-br from-green-100/80 to-emerald-100/80 dark:from-green-900/40 dark:to-emerald-900/40 shadow-xl shadow-green-500/20 scale-[1.02]" 
+                      ? "border-violet-500/50 bg-gradient-to-br from-violet-100/80 to-purple-100/80 dark:from-violet-900/40 dark:to-purple-900/40 shadow-xl shadow-violet-500/20 scale-[1.02]" 
                       : "border-gray-300/50 dark:border-gray-700/50 bg-white/60 dark:bg-gray-900/60 hover:scale-[1.01] hover:shadow-lg"
                   }`}
                   data-testid={`answer-card-${answer.agent.handle}`}
                 >
                   {isSelected && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-lg animate-pulse">
                       <Check className="h-4 w-4" />
-                      Correct Prediction
+                      ✨ Selected
                     </div>
                   )}
 
@@ -331,16 +294,12 @@ export default function RequestDetail() {
                           Key Highlights
                         </h4>
                         <ul className="space-y-1 text-sm">
-                          {highlightsList.map((highlight, idx) => {
-                            // Remove any existing bullet points or dashes from the start
-                            const cleanHighlight = highlight.replace(/^[•\-\*]\s*/, '').trim();
-                            return (
-                              <li key={idx} className="flex items-start gap-2">
-                                <span className="text-primary mt-0.5">•</span>
-                                <span>{cleanHighlight}</span>
-                              </li>
-                            );
-                          })}
+                          {highlightsList.map((highlight, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span>{highlight.replace(/^-\s*/, '')}</span>
+                            </li>
+                          ))}
                         </ul>
                       </div>
                     )}
@@ -359,41 +318,30 @@ export default function RequestDetail() {
                       </div>
                     </div>
 
-                    {/* Action Button - Disabled after vote (FINAL) */}
-                    <Button
-                      className={`w-full font-bold transition-all duration-300 ${
-                        isSelected 
-                          ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg border-0 cursor-default" 
-                          : isSettled
-                            ? "bg-gray-400 text-gray-600 cursor-not-allowed opacity-50"
+                    {/* Action Button */}
+                    {!isSettled && (
+                      <Button
+                        className={`w-full font-bold transition-all duration-300 ${
+                          isSelected 
+                            ? "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg border-0" 
                             : "bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white shadow-md border-0 hover:shadow-lg"
-                      }`}
-                      onClick={() => !isSettled && selectAnswerMutation.mutate(answer.id)}
-                      disabled={selectAnswerMutation.isPending || isSettled}
-                      data-testid={`button-select-${answer.agent.handle}`}
-                    >
-                      {isSelected ? (
-                        <>
-                          <Check className="mr-2 h-4 w-4" />
-                          ✓ Winner (Final)
-                        </>
-                      ) : isSettled ? (
-                        <>
-                          Not Selected
-                        </>
-                      ) : (
-                        <>
-                          <Check className="mr-2 h-4 w-4" />
-                          This Was Correct
-                        </>
-                      )}
-                    </Button>
-                    
-                    {/* Points info for voted predictions */}
-                    {isSettled && isSelected && (
-                      <p className="text-xs text-center text-emerald-600 dark:text-emerald-400 font-medium mt-2">
-                        🏆 +10 points earned for voting
-                      </p>
+                        }`}
+                        onClick={() => selectAnswerMutation.mutate(answer.id)}
+                        disabled={selectAnswerMutation.isPending}
+                        data-testid={`button-select-${answer.agent.handle}`}
+                      >
+                        {isSelected ? (
+                          <>
+                            <Check className="mr-2 h-4 w-4" />
+                            Selected
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Choose This Prediction
+                          </>
+                        )}
+                      </Button>
                     )}
                   </CardContent>
                 </Card>
@@ -406,49 +354,24 @@ export default function RequestDetail() {
         </>
       )}
 
-      {/* User Points Card */}
-      {user && (
-        <Card className="max-w-md mx-auto bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-amber-500/30">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-gradient-to-br from-amber-500 to-orange-500">
-                  <Trophy className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Your Points</p>
-                  <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                    {user.reputation || 0}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right text-xs text-muted-foreground max-w-[150px]">
-                <p className="flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Earn +10 pts for each vote
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Navigation */}
-      <div className="flex justify-center gap-4">
-        <Button
-          variant="outline"
-          onClick={() => setLocation("/dashboard")}
-          data-testid="button-back-to-dashboard"
-        >
-          Back to Dashboard
-        </Button>
-        <Button
-          onClick={() => setLocation("/agents")}
-          data-testid="button-view-leaderboard"
-        >
-          View Leaderboard
-        </Button>
-      </div>
+      {isSettled && (
+        <div className="flex justify-center gap-4">
+          <Button
+            variant="outline"
+            onClick={() => setLocation(`/chart/${request.chartId}`)}
+            data-testid="button-back-to-chart"
+          >
+            Back to Chart
+          </Button>
+          <Button
+            onClick={() => setLocation("/agents")}
+            data-testid="button-view-leaderboard"
+          >
+            View Leaderboard
+          </Button>
+        </div>
+      )}
       </div>
     </div>
   );

@@ -7,8 +7,8 @@ import type { Express } from "express";
 import { z } from "zod";
 import { deployVirtualsAgent, getAgentDetails } from "../lib/agents/virtuals-agent";
 import { db } from "./db";
-import { agents } from "../shared/schema";
-import { eq } from "drizzle-orm";
+import { agents, users, charts, predictionRequests } from "../shared/schema";
+import { eq, count, sql } from "drizzle-orm";
 
 // Schema for agent deployment
 const deployAgentSchema = z.object({
@@ -202,12 +202,51 @@ export function setupAdminRoutes(app: Express) {
 
       const allAgents = await db.select().from(agents);
 
+      // User statistics
+      const [totalUsersResult] = await db
+        .select({ count: count() })
+        .from(users);
+      const totalUsers = totalUsersResult.count;
+
+      const [usersWithChartsResult] = await db
+        .select({ count: sql<number>`COUNT(DISTINCT ${charts.userId})` })
+        .from(charts)
+        .where(sql`${charts.userId} IS NOT NULL`);
+      const usersWithCharts = Number(usersWithChartsResult.count);
+
+      const [usersWithRequestsResult] = await db
+        .select({ count: sql<number>`COUNT(DISTINCT ${predictionRequests.userId})` })
+        .from(predictionRequests)
+        .where(sql`${predictionRequests.userId} IS NOT NULL`);
+      const usersWithRequests = Number(usersWithRequestsResult.count);
+
+      // Recent users (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const [recentUsersResult] = await db
+        .select({ count: count() })
+        .from(users)
+        .where(sql`${users.createdAt} >= ${sevenDaysAgo}`);
+      const recentUsers = recentUsersResult.count;
+
       const stats = {
-        totalAgents: allAgents.length,
-        activeAgents: allAgents.filter(a => a.isActive).length,
-        onChainAgents: allAgents.filter(a => a.contractAddress).length,
-        totalReputation: allAgents.reduce((sum, a) => sum + (a.reputation || 0), 0),
-        agents: allAgents.map(a => ({
+        users: {
+          totalUsers,
+          usersWithCharts,
+          usersWithPredictions: usersWithRequests,
+          activeUsers: Math.max(usersWithCharts, usersWithRequests),
+          newUsersLast7Days: recentUsers,
+          engagementRate: totalUsers > 0 
+            ? ((Math.max(usersWithCharts, usersWithRequests) / totalUsers) * 100).toFixed(1) + '%'
+            : '0%',
+        },
+        agents: {
+          totalAgents: allAgents.length,
+          activeAgents: allAgents.filter(a => a.isActive).length,
+          onChainAgents: allAgents.filter(a => a.contractAddress).length,
+          totalReputation: allAgents.reduce((sum, a) => sum + (a.reputation || 0), 0),
+        },
+        agentDetails: allAgents.map(a => ({
           id: a.id,
           handle: a.handle,
           reputation: a.reputation,

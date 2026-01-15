@@ -79,16 +79,6 @@ async function createCommitment(inputs: string[], nonce: string): Promise<string
   return hashHex;
 }
 
-// Deterministic planet order - MUST match between client and server
-const PLANET_ORDER = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn'] as const;
-
-/**
- * Get planet values in deterministic order
- */
-function getPlanetValuesInOrder(planets: { [key: string]: number }): string[] {
-  return PLANET_ORDER.map(planet => (planets[planet] ?? 0).toString());
-}
-
 /**
  * Generate ZK proof of knowledge
  */
@@ -127,9 +117,9 @@ export async function generateZKProof(
   // Create commitment C = Poseidon(inputs || nonce)
   const commitment = await createCommitment(inputArray, nonce);
   
-  // Create position array for verification - use deterministic order!
+  // Create position array for verification
   const positionArray = [
-    ...getPlanetValuesInOrder(positions.planets),
+    ...Object.values(positions.planets).map(p => p.toString()),
     positions.asc.toString(),
     positions.mc.toString()
   ];
@@ -175,9 +165,9 @@ export async function verifyZKProof(
   try {
     const poseidon = await getPoseidon();
     
-    // Create position array - use same deterministic order as generation!
+    // Create position array
     const positionArray = [
-      ...getPlanetValuesInOrder(positions.planets),
+      ...Object.values(positions.planets).map(p => p.toString()),
       positions.asc.toString(),
       positions.mc.toString()
     ];
@@ -200,16 +190,7 @@ export async function verifyZKProof(
     const expectedProof = poseidon.F.toString(expectedProofHash, 16);
     
     // Check if proof matches
-    const isValid = proof === expectedProof;
-    
-    if (!isValid) {
-      console.log("ZK Verification Debug:");
-      console.log("  Received proof:", proof);
-      console.log("  Expected proof:", expectedProof);
-      console.log("  Position array:", positionArray);
-    }
-    
-    return isValid;
+    return proof === expectedProof;
   } catch (error) {
     console.error("ZK proof verification error:", error);
     return false;

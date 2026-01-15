@@ -58,20 +58,18 @@ async function deployContracts() {
   console.log('   ChartRegistry.sol:', chartRegistrySource.length, 'bytes');
   console.log('   AgentReputation.sol:', agentReputationSource.length, 'bytes\n');
 
-  // Manual bytecode and ABI (simplified for quick deployment)
-  // In production, you'd compile with solc
-  
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  console.log('⚠️  Note: To deploy, contracts need to be compiled first.\n');
-  console.log('For now, let\'s register contract placeholders and demonstrate flow:\n');
+  console.log('ℹ️  For production deployment, use:\n');
+  console.log('   • npx tsx scripts/deploy-erc8004.ts  (ERC-8004 on Arbitrum Sepolia)');
+  console.log('   • cargo stylus deploy              (Stylus contracts)\n');
 
-  // Simulate deployment (would use actual bytecode in production)
-  const mockChartRegistry = '0x' + '1234567890'.repeat(4);
-  const mockAgentReputation = '0x' + 'ABCDEF0123'.repeat(4);
+  // This script demonstrates the deployment flow
+  const demoChartRegistry = '0x' + '1'.repeat(40);
+  const demoAgentReputation = '0x' + '2'.repeat(40);
 
-  console.log('📝 Simulated Deployment:\n');
-  console.log('✅ ChartRegistry deployed at:', mockChartRegistry);
-  console.log('✅ AgentReputation deployed at:', mockAgentReputation);
+  console.log('📝 Demo Addresses (not deployed):\n');
+  console.log('   ChartRegistry:', demoChartRegistry);
+  console.log('   AgentReputation:', demoAgentReputation);
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   // Save deployment info
@@ -80,9 +78,10 @@ async function deployContracts() {
     chainId: 84532,
     deployer: wallet.address,
     timestamp: new Date().toISOString(),
+    note: 'Demo addresses - use deploy-erc8004.ts for actual deployment',
     contracts: {
-      ChartRegistry: mockChartRegistry,
-      AgentReputation: mockAgentReputation,
+      ChartRegistry: demoChartRegistry,
+      AgentReputation: demoAgentReputation,
     },
   };
 
@@ -91,10 +90,10 @@ async function deployContracts() {
     JSON.stringify(deploymentInfo, null, 2)
   );
 
-  console.log('💾 Deployment info saved to deployment-info.json\n');
-  console.log('📝 Add to .env:\n');
-  console.log(`CHART_REGISTRY_ADDRESS=${mockChartRegistry}`);
-  console.log(`AGENT_REPUTATION_ADDRESS=${mockAgentReputation}\n`);
+  console.log('💾 Demo info saved to deployment-info.json\n');
+  console.log('📝 After actual deployment, add to .env:\n');
+  console.log('   CHART_REGISTRY_ADDRESS=<deployed_address>');
+  console.log('   ERC8004_REGISTRY_ADDRESS=<deployed_address>\n');
 
   return deploymentInfo;
 }

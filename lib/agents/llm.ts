@@ -1,73 +1,18 @@
 /**
- * LLM client for polishing agent predictions
- * Uses OpenAI-compatible API with cost-efficient models
+ * Perplexity LLM client for polishing agent predictions
  */
 
-interface ChatMessage {
+interface PerplexityMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-interface ChatResponse {
+interface PerplexityResponse {
   choices: Array<{
     message: {
       content: string;
     };
   }>;
-}
-
-// Use gpt-4o-mini for cost efficiency - about $0.15 per 1M input tokens
-const MODEL = 'gpt-4o-mini';
-
-/**
- * Detect if a question is trying to game the system or is rubbish
- */
-function detectGamingAttempt(question: string): boolean {
-  const lowerQuestion = question.toLowerCase().trim();
-  
-  // Patterns that indicate gaming attempts
-  const gamingPatterns = [
-    /^(test|testing|hello|hi|hey|what|who|when|where|why|how)\s*[?!]?$/i,
-    /^(a|b|c|d|1|2|3|yes|no|maybe)\s*[?!]?$/i,
-    /^(lol|lmao|haha|hehe|xd)\s*[?!]?$/i,
-    /^[^a-z]{3,}$/i, // Only symbols/numbers
-    /^(.)\1{10,}$/i, // Repeated single character
-    /^.{0,5}$/i, // Too short (less than 6 chars)
-    /\b(test|testing|spam|fake|joke|troll|gaming|game)\b/i,
-    /^[?!.\s]+$/, // Only punctuation
-  ];
-  
-  // Check for patterns
-  for (const pattern of gamingPatterns) {
-    if (pattern.test(lowerQuestion)) {
-      return true;
-    }
-  }
-  
-  // Check if question is too generic or meaningless
-  const meaninglessPhrases = [
-    'what is',
-    'tell me',
-    'explain',
-    'define',
-    'what does',
-    'what are',
-    'what do',
-  ];
-  
-  const startsWithMeaningless = meaninglessPhrases.some(phrase => 
-    lowerQuestion.startsWith(phrase) && lowerQuestion.length < 30
-  );
-  
-  // Check if it's a real prediction question (should have future-oriented language)
-  const hasFutureLanguage = /\b(will|should|can|could|might|may|going to|gonna|future|tomorrow|next|soon|this|coming)\b/i.test(lowerQuestion);
-  
-  // If too short, no future language, and starts with meaningless phrase = likely gaming
-  if (lowerQuestion.length < 20 && !hasFutureLanguage && startsWithMeaningless) {
-    return true;
-  }
-  
-  return false;
 }
 
 export async function polishPrediction(
@@ -77,132 +22,114 @@ export async function polishPrediction(
   targetDate: string,
   agentPersonality: string
 ): Promise<{ summary: string; highlights: string }> {
-  // Check for LLM_API_KEY first, fall back to PERPLEXITY_API_KEY for backward compatibility
-  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || process.env.PERPLEXITY_API_KEY;
+  const apiKey = process.env.PERPLEXITY_API_KEY;
 
   if (!apiKey) {
-    console.log('No LLM API key found, using template-based predictions');
+    // Return template-based prediction if no API key
     return generateTemplatePrediction(dayScore, factors, agentPersonality);
   }
 
-  // Determine which API to use based on the key format
-  const isPerplexity = apiKey.startsWith('pplx-');
-  const apiUrl = isPerplexity 
-    ? 'https://api.perplexity.ai/chat/completions'
-    : 'https://api.openai.com/v1/chat/completions';
-  
-  const modelToUse = isPerplexity ? 'llama-3.1-sonar-small-128k-chat' : MODEL;
-
   try {
-    // Detect if question is trying to game the system or is rubbish
-    const isGamingAttempt = detectGamingAttempt(question);
-    
-    const messages: ChatMessage[] = [
+    const messages: PerplexityMessage[] = [
       {
         role: 'system',
-        content: `${agentPersonality}
-
-YOUR MISSION: Deliver a prediction that makes the user feel they've gained genuine cosmic insight they couldn't get anywhere else.
-
-${isGamingAttempt ? `⚠️ GAMING DETECTED: The question "${question}" appears to be trying to game the system or is not a genuine prediction request. Give a CHEEKY, WITTY response that:
-- Playfully calls out that this isn't a real prediction question
-- Maintains your astrologer personality but with humor
-- Suggests asking a real question instead
-- Be clever and entertaining, not rude
-- Keep it under 80 words` : `RESPONSE STRUCTURE:
-1. COSMIC INSIGHT (2-3 sentences): Your unique interpretation of what the stars reveal about their question. Be SPECIFIC - mention the actual planetary influence and what it means for THEM.
-
-2. THREE GUIDANCE POINTS: Each should be:
-   - Actionable (something they can DO)
-   - Specific to THIS day and THIS question
-   - Reflecting YOUR unique astrological philosophy
-
-QUALITY STANDARDS:
-- Every sentence should contain VALUE - no filler
-- Connect cosmic factors to PRACTICAL outcomes
-- Make them feel you've seen something others would miss
-- Your reading should feel personal, not generic
-
-Keep total under 150 words but make every word count.`}`,
+        content: `You are an expert Western astrologer providing daily guidance. Your personality: ${agentPersonality}. Be concise, engaging, and practical.`,
       },
       {
         role: 'user',
-        content: `Question: "${question}"
-Date: ${targetDate}
-Day Energy Score: ${dayScore}/100
-Active Cosmic Factors: ${factors.slice(0, 3).join('; ')}
+        content: `Generate a daily astrology prediction for ${targetDate}.
 
-${isGamingAttempt ? 'This question seems like it might be trying to game the system. Give a cheeky, witty response.' : 'Deliver your unique cosmic reading. Focus on the INSIGHT they need most right now.'}`,
+Question: ${question}
+
+Day Score: ${dayScore}/100
+Astrological Factors: ${factors.join('; ')}
+
+Provide:
+1. A 2-3 sentence summary (conversational, encouraging, specific to the score and factors)
+2. 3-4 key highlights as bullet points (actionable advice)
+
+Be authentic and helpful. Acknowledge both opportunities and challenges.`,
       },
     ];
 
-    const response = await fetch(apiUrl, {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: modelToUse,
+        model: 'llama-3.1-sonar-small-128k-chat',
         messages,
-        temperature: 0.95, // Very high temp for maximum distinctness
-        max_tokens: 300,
-        // Add seed variation between agents for more distinct outputs (if supported)
-        ...(agentPersonality.includes('@auriga') ? { seed: 42 } : { seed: 99 }),
+        temperature: 0.7,
+        max_tokens: 500,
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`LLM API error: ${response.status} - ${errorText}`);
-      throw new Error(`LLM API error: ${response.statusText}`);
+      throw new Error(`Perplexity API error: ${response.statusText}`);
     }
 
-    const data: ChatResponse = await response.json();
+    const data: PerplexityResponse = await response.json();
     const content = data.choices[0]?.message?.content || '';
 
-    // Parse the response - sentences first, then bullets
+    // Parse the response to extract summary and highlights
     const lines = content.split('\n').filter(line => line.trim());
     
     let summary = '';
     const highlightsList: string[] = [];
+    let inHighlights = false;
 
     for (const line of lines) {
-      const trimmed = line.trim().replace(/\*\*/g, '');
+      const trimmed = line.trim();
       if (!trimmed) continue;
-      
-      // Skip section headers
-      if (trimmed.match(/^(action|recommendation|key|insight)/i) && trimmed.length < 30) continue;
-      if (trimmed.match(/^\d+\.\s*$/) || trimmed === '---') continue;
 
-      // Bullet points go to highlights
-      if (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.match(/^\d+\.\s+\w/)) {
-        const cleaned = trimmed.replace(/^[-•\d.]+\s*/, '');
-        if (cleaned.length > 5 && highlightsList.length < 3) {
-          highlightsList.push(cleaned);
+      if (trimmed.toLowerCase().includes('highlight') || trimmed.toLowerCase().includes('key point')) {
+        inHighlights = true;
+        continue;
+      }
+
+      if (inHighlights) {
+        if (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.match(/^\d+\./)) {
+          highlightsList.push(trimmed.replace(/^[-•\d.]+\s*/, ''));
         }
-      } else if (!summary) {
-        // First non-bullet is summary
-        summary = trimmed;
-      } else if (summary.length < 350) {
-        // Append to build fuller summary
-        summary += ' ' + trimmed;
+      } else {
+        if (!summary) {
+          summary = trimmed;
+        } else {
+          summary += ' ' + trimmed;
+        }
       }
     }
 
-    // Ensure we have highlights
-    if (highlightsList.length === 0) {
-      highlightsList.push('Trust your instincts on this');
-      highlightsList.push('Stay focused on your goals');
-      highlightsList.push('Review before committing');
+    // Fallback parsing if structured format not found
+    if (!summary || highlightsList.length === 0) {
+      const allText = content.trim();
+      const parts = allText.split(/\n\n+/);
+      summary = parts[0] || allText.substring(0, 300);
+      
+      if (parts.length > 1) {
+        const bulletPoints = parts.slice(1).join('\n').split('\n').filter(l => l.trim());
+        bulletPoints.forEach(bp => {
+          if (bp.trim()) {
+            highlightsList.push(bp.replace(/^[-•\d.]+\s*/, ''));
+          }
+        });
+      }
+
+      if (highlightsList.length === 0) {
+        highlightsList.push('Focus on the cosmic energies present today');
+        highlightsList.push('Stay mindful of planetary influences');
+        highlightsList.push('Trust your intuition');
+      }
     }
 
     return {
-      summary: summary.trim().substring(0, 400) || generateTemplateSummary(dayScore, factors),
-      highlights: highlightsList.slice(0, 3).map(h => `• ${h}`).join('\n'),
+      summary: summary.trim() || generateTemplateSummary(dayScore, factors),
+      highlights: highlightsList.slice(0, 4).map(h => `- ${h}`).join('\n'),
     };
   } catch (error) {
-    console.error('Error calling LLM API:', error);
+    console.error('Error calling Perplexity API:', error);
     return generateTemplatePrediction(dayScore, factors, agentPersonality);
   }
 }
@@ -220,22 +147,34 @@ function generateTemplatePrediction(
 
 function generateTemplateSummary(dayScore: number, factors: string[]): string {
   if (dayScore >= 70) {
-    return `This looks favorable for you. ${factors[0] || 'The planetary alignments'} creates supportive energy for moving forward. ${factors[1] ? factors[1] + ' adds additional momentum.' : ''} The cosmic climate suggests this is a good time to take action on what matters to you.`;
+    return `This looks like a promising day for you! The cosmic alignments are favorable, with ${factors.slice(0, 2).join(' and ')}. Use this positive energy to move forward with your goals and connect with others.`;
   } else if (dayScore >= 40) {
-    return `The energies are mixed right now. ${factors[0] || 'Current transits'} suggests some caution is warranted, though opportunities exist. ${factors[1] ? 'Meanwhile, ' + factors[1].toLowerCase() + '.' : ''} Proceed thoughtfully and trust your judgment on timing.`;
+    return `Today presents a mixed cosmic picture with both opportunities and challenges. ${factors[0]} suggests you'll need to balance different energies. Stay flexible and trust your instincts as you navigate the day.`;
   } else {
-    return `Consider waiting for better timing. ${factors[0] || 'The current planetary positions'} indicates potential obstacles or delays. ${factors[1] ? factors[1] + ' reinforces this.' : ''} Use this period for preparation and planning rather than major action.`;
+    return `The stars suggest a more contemplative day ahead. With ${factors.slice(0, 2).join(' and ')}, it's a good time to slow down, reflect, and take care of yourself. Not every day needs to be action-packed.`;
   }
 }
 
 function generateTemplateHighlights(dayScore: number, factors: string[]): string {
+  const highlights: string[] = [];
+
   if (dayScore >= 70) {
-    return `• Take initiative on important decisions\n• Reach out to key people in your network\n• Trust your instincts when opportunities arise`;
+    highlights.push('Take initiative on important projects');
+    highlights.push('Social connections are highlighted');
+    highlights.push('Trust your creative impulses');
   } else if (dayScore >= 40) {
-    return `• Proceed carefully but don't hesitate too long\n• Double-check details before committing\n• Balance optimism with practical planning`;
+    highlights.push('Balance work and personal time carefully');
+    highlights.push('Communication may require extra patience');
+    highlights.push('Focus on what you can control');
   } else {
-    return `• Postpone major decisions if possible\n• Focus on research and preparation\n• Use this time for reflection and planning`;
+    highlights.push('Prioritize rest and self-care');
+    highlights.push('Avoid major decisions if possible');
+    highlights.push('Reflect on recent lessons learned');
   }
+
+  highlights.push('Stay grounded in your truth');
+
+  return highlights.map(h => `- ${h}`).join('\n');
 }
 
 /**
@@ -252,42 +191,40 @@ export async function generateChatResponse(
   },
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<string> {
-  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || process.env.PERPLEXITY_API_KEY;
+  const apiKey = process.env.PERPLEXITY_API_KEY;
 
   if (!apiKey) {
+    // Return template-based response if no API key
     return `Based on your prediction (Day Score: ${context.dayScore}/100), ${generateTemplateResponse(userQuestion, context)}`;
   }
 
-  const isPerplexity = apiKey.startsWith('pplx-');
-  const apiUrl = isPerplexity 
-    ? 'https://api.perplexity.ai/chat/completions'
-    : 'https://api.openai.com/v1/chat/completions';
-  
-  const modelToUse = isPerplexity ? 'llama-3.1-sonar-small-128k-chat' : MODEL;
-
   try {
-    const messages: ChatMessage[] = [
+    const messages: PerplexityMessage[] = [
       {
         role: 'system',
-        content: `You are a practical astrologer providing actionable guidance. ${context.agentPersonality ? `Your personality: ${context.agentPersonality}.` : ''} 
+        content: `You are a practical astrologer providing actionable daily guidance. ${context.agentPersonality ? `Your personality: ${context.agentPersonality}.` : ''} 
 
-You are helping a user understand their prediction for ${context.targetDate}.
+You are helping a user understand their daily prediction for ${context.targetDate}.
 
 Prediction Context:
 - Day Score: ${context.dayScore}/100
 - Astrological Factors: ${context.transitFactors.join('; ')}
 - Original Prediction: ${context.predictionSummary}
 
-Give PRACTICAL, ACTIONABLE advice:
+IMPORTANT: Give PRACTICAL, ACTIONABLE advice that the user can actually use today:
 - Focus on specific actions they can take
-- Explain HOW astrological factors affect them practically
+- Explain HOW the astrological factors affect their day practically
+- Give timing advice (morning, afternoon, evening) when relevant
+- Mention what to DO and what to AVOID
 - Be conversational but concrete
-- Keep responses concise (2-3 sentences max)`,
+- Reference specific planetary influences and their real-world effects
+
+Example: Instead of "Venus energy is strong", say "Venus in your sector suggests this afternoon is ideal for important conversations with colleagues - they'll be more receptive to your ideas."`,
       },
     ];
 
-    // Add conversation history (limit to last 4 messages)
-    const recentHistory = conversationHistory.slice(-4);
+    // Add conversation history (limit to last 5 messages to avoid token limits)
+    const recentHistory = conversationHistory.slice(-5);
     messages.push(...recentHistory);
 
     // Add current user question
@@ -296,30 +233,30 @@ Give PRACTICAL, ACTIONABLE advice:
       content: userQuestion,
     });
 
-    const response = await fetch(apiUrl, {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: modelToUse,
+        model: 'llama-3.1-sonar-small-128k-chat',
         messages,
         temperature: 0.7,
-        max_tokens: 300,
+        max_tokens: 400,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`LLM API error: ${response.statusText}`);
+      throw new Error(`Perplexity API error: ${response.statusText}`);
     }
 
-    const data: ChatResponse = await response.json();
+    const data: PerplexityResponse = await response.json();
     const answer = data.choices[0]?.message?.content || '';
 
     return answer.trim() || generateTemplateResponse(userQuestion, context);
   } catch (error) {
-    console.error('Error calling LLM chat API:', error);
+    console.error('Error calling Perplexity chat API:', error);
     return generateTemplateResponse(userQuestion, context);
   }
 }

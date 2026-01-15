@@ -88,8 +88,9 @@ export default function ChartCreationForm() {
           positions
         );
 
-        const requestBody: any = {
+        const response = await apiRequest("POST", "/api/chart", {
           zkEnabled: true,
+          privyUserId: walletAddress,
           inputsHash: zkProof.commitment,
           zkProof: zkProof.proof,
           zkSalt: zkProof.salt,
@@ -102,27 +103,11 @@ export default function ChartCreationForm() {
             asc: positions.asc,
             mc: positions.mc,
           },
-        };
-        
-        // Only include walletAddress/privyUserId if they exist
-        if (walletAddress) {
-          requestBody.walletAddress = walletAddress.toLowerCase();
-          requestBody.privyUserId = walletAddress.toLowerCase(); // Legacy support
-        }
-        
-        const response = await apiRequest("POST", "/api/chart", requestBody);
+        });
         
         return await response.json();
       } catch (error: any) {
-        // Extract detailed error message from the error
-        console.error("Chart creation error:", error);
-        console.error("Error details:", {
-          message: error.message,
-          status: error.status,
-          stack: error.stack
-        });
-        // Use the error message directly - it should now contain the server's detailed message
-        throw error;
+        throw new Error(error.message || "Failed to create chart");
       }
     },
     onSuccess: (data: any) => {

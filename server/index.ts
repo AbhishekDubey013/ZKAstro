@@ -4,11 +4,8 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
-// CORS configuration - allow frontend domains
+// CORS configuration - allow Vercel frontend and localhost
 app.use((req, res, next) => {
-  // Get allowed origins from environment or use defaults
-  const envOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
-  
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5000',
@@ -16,15 +13,7 @@ app.use((req, res, next) => {
     'https://zk-astro-tyvk6x8as-abhisheks-projects-74a6b2ad.vercel.app',
     'https://zk-astro-3prdzov0y-abhisheks-projects-74a6b2ad.vercel.app',
     // Allow any vercel.app domain
-    /https:\/\/.*\.vercel\.app$/,
-    // Allow any railway.app domain
-    /https:\/\/.*\.railway\.app$/,
-    // Allow astrolabes.xyz domain (with and without www)
-    'https://astrolabes.xyz',
-    'https://www.astrolabes.xyz',
-    /https:\/\/.*\.astrolabes\.xyz$/,
-    // Add environment-specified origins
-    ...envOrigins
+    /https:\/\/.*\.vercel\.app$/
   ];
   
   const origin = req.headers.origin;
@@ -41,7 +30,7 @@ app.use((req, res, next) => {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-PAYMENT, X-Payment-Id');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
       res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
     }
   }
@@ -101,20 +90,9 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  const env = app.get("env");
-  log(`Environment: ${env}, NODE_ENV: ${process.env.NODE_ENV}`);
-  
-  if (env === "development" || process.env.NODE_ENV === "development") {
-    log("Setting up Vite dev server...");
-    try {
-      await setupVite(app, server);
-      log("✅ Vite dev server initialized");
-    } catch (error) {
-      log(`❌ Vite setup failed: ${error}`);
-      throw error;
-    }
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
   } else {
-    log("Serving static files...");
     serveStatic(app);
   }
 

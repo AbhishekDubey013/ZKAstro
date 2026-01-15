@@ -32,7 +32,6 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
   ensureUser(userId: string): Promise<User>;
-  updateUserReputation(userId: string, delta: number): Promise<User | undefined>;
 
   // Charts
   getChart(id: string): Promise<Chart | undefined>;
@@ -48,15 +47,12 @@ export interface IStorage {
   getAgentStats(): Promise<any[]>;
   createAgent(agent: InsertAgent): Promise<Agent>;
   updateAgentReputation(id: string, delta: number): Promise<void>;
-  updateAgentWallet(handle: string, paymentWallet: string): Promise<Agent | undefined>;
 
   // Prediction Requests
   getPredictionRequest(id: string): Promise<PredictionRequest | undefined>;
   getPredictionRequestByChartAndDate(chartId: string, targetDate: Date): Promise<PredictionRequest | undefined>;
-  getPredictionsByUserId(userId: string): Promise<PredictionRequest[]>;
   createPredictionRequest(request: InsertPredictionRequest): Promise<PredictionRequest>;
   updatePredictionRequestStatus(id: string, status: string, selectedAnswerId?: string): Promise<void>;
-  updatePredictionRequestCorrectAnswer(id: string, correctAnswerId: string): Promise<void>;
 
   // Prediction Answers
   createPredictionAnswer(answer: InsertPredictionAnswer): Promise<PredictionAnswer>;
@@ -115,41 +111,6 @@ export class DatabaseStorage implements IStorage {
     }
     
     return user;
-  }
-
-  async updateUserReputation(userId: string, delta: number): Promise<User | undefined> {
-    let user = await this.getUser(userId);
-    
-    // If user doesn't exist, create them first (for wallet-based users)
-    if (!user) {
-      console.log(`Creating new user for wallet: ${userId}`);
-      user = await this.upsertUser({
-        id: userId,
-        email: null,
-        firstName: null,
-        lastName: null,
-        profileImageUrl: null,
-      });
-    }
-    
-    if (!user) {
-      console.error(`Failed to create/get user: ${userId}`);
-      return undefined;
-    }
-    
-    const newReputation = Math.max(0, (user.reputation || 0) + delta);
-    console.log(`Updating user ${userId} reputation: ${user.reputation || 0} + ${delta} = ${newReputation}`);
-    
-    const [updated] = await db
-      .update(users)
-      .set({ 
-        reputation: newReputation,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId))
-      .returning();
-    
-    return updated || undefined;
   }
 
   // Charts
@@ -231,15 +192,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateAgentWallet(handle: string, paymentWallet: string): Promise<Agent | undefined> {
-    const [agent] = await db
-      .update(agents)
-      .set({ paymentWallet: paymentWallet.toLowerCase() })
-      .where(eq(agents.handle, handle))
-      .returning();
-    return agent || undefined;
-  }
-
   // Prediction Requests
   async getPredictionRequest(id: string): Promise<PredictionRequest | undefined> {
     const [request] = await db
@@ -279,21 +231,6 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(predictionRequests)
       .set({ status, selectedAnswerId })
-      .where(eq(predictionRequests.id, id));
-  }
-
-  async getPredictionsByUserId(userId: string): Promise<PredictionRequest[]> {
-    return await db
-      .select()
-      .from(predictionRequests)
-      .where(eq(predictionRequests.userId, userId))
-      .orderBy(desc(predictionRequests.createdAt));
-  }
-
-  async updatePredictionRequestCorrectAnswer(id: string, correctAnswerId: string): Promise<void> {
-    await db
-      .update(predictionRequests)
-      .set({ correctAnswerId, status: "SETTLED" })
       .where(eq(predictionRequests.id, id));
   }
 

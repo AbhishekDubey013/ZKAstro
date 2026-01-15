@@ -1,14 +1,15 @@
 # ZKastro - Privacy-First AI Astrology Platform
 
-A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, and blockchain transparency. Built for the Ethereum is for AI Hackathon.
+A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, and blockchain transparency. Features ERC-8004 agent identity registry and x402 payment protocol integration.
 
 ## 🌟 Key Features
 
 - **Zero-Knowledge Privacy**: Birth data calculated client-side, only cryptographic proofs sent to server
 - **On-Chain Verification**: Chart commitments recorded on Arbitrum Sepolia using Stylus
 - **AI-Powered Predictions**: Competing agents provide daily astrological insights
+- **ERC-8004 Agent Registry**: Standardized agent identity, credentials, and reputation on-chain
+- **x402 Payment Protocol**: HTTP 402 payment-required flow for premium predictions
 - **Transparent Reputation**: Agent performance immutably stored on blockchain
-- **Beautiful Modern UI**: Gradient-themed interface with real-time notifications
 - **Stylus Smart Contracts**: Rust-based contracts with on-chain ZK verification
 
 ## 🛠️ Tech Stack
@@ -30,6 +31,8 @@ A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, a
 - Arbitrum Sepolia (Ethereum L2)
 - Stylus (Rust/WASM smart contracts)
 - ChartRegistry contract with on-chain ZK verification
+- ERC-8004 Agent Registry (Draft standard implementation)
+- x402 Payment Protocol for monetization
 
 ### Privacy & Security
 - Zero-Knowledge proofs (Poseidon hash)
@@ -50,8 +53,8 @@ A decentralized astrology platform combining Zero-Knowledge proofs, AI agents, a
 
 1. **Clone repository**
    ```bash
-   git clone <your-repo-url>
-   cd AIInterviewCoach
+   git clone https://github.com/your-username/zkastro.git
+   cd zkastro
    ```
 
 2. **Install dependencies**
@@ -143,8 +146,15 @@ All agent performance is:
 - **Purpose**: Store chart commitments with on-chain ZK verification
 - **Technology**: Rust/WASM smart contract
 
+### ERC8004AgentRegistry (Solidity)
+- **Network**: Arbitrum Sepolia
+- **Purpose**: Standardized agent identity, credentials, and reputation
+- **Standard**: [ERC-8004 Trustless Agents](https://eips.ethereum.org/EIPS/eip-8004) (Draft)
+- **Features**: Agent profiles, verifiable credentials, validation workflows
+
 ## 🎯 API Endpoints
 
+### Core API
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/chart` | Create chart (ZK mode only) |
@@ -154,6 +164,16 @@ All agent performance is:
 | POST | `/api/request/:id/select` | Select winning prediction |
 | GET | `/api/agents` | List all agents |
 | GET | `/api/agents/stats` | Agent statistics |
+
+### ERC-8004 Registry API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/erc8004/status` | Check registry deployment status |
+| GET | `/api/erc8004/agents/:id/profile` | Get full agent profile |
+| GET | `/api/erc8004/agents/:id/credentials` | Get agent credentials |
+| GET | `/api/erc8004/agents/:id/stats` | Get on-chain agent stats |
+| POST | `/api/erc8004/agents/:id/validate` | Validate agent (admin) |
+| POST | `/api/erc8004/agents/:id/credentials` | Issue credential (admin) |
 
 ## 🔐 Security Features
 
@@ -220,19 +240,22 @@ Both agents use identical astronomical data but employ different weighting strat
 │   ├── src/
 │   │   ├── components/     # UI components
 │   │   ├── pages/          # Page components
-│   │   ├── hooks/          # Custom hooks
+│   │   ├── hooks/          # Custom hooks (useX402, useMetaMask)
 │   │   └── lib/            # Utilities
 ├── server/                 # Express backend
-│   ├── routes.ts           # API routes
+│   ├── routes.ts           # API routes (including ERC-8004)
 │   ├── storage.ts          # Database layer
 │   └── db.ts               # Drizzle config
 ├── contracts/              # Smart contracts
 │   ├── src/lib.rs          # Stylus ChartRegistry (Rust)
+│   ├── ERC8004AgentRegistry.sol  # ERC-8004 implementation
 │   └── Cargo.toml          # Rust dependencies
 ├── lib/                    # Shared utilities
 │   ├── astro/              # Astronomy engine
 │   ├── agents/             # AI agents
-│   └── blockchain/         # On-chain integration
+│   └── blockchain/         # On-chain integration (ERC-8004)
+├── scripts/                # Deployment scripts
+│   └── deploy-erc8004.ts   # ERC-8004 deployment
 └── shared/
     └── schema.ts           # Database schema
 ```
@@ -255,7 +278,9 @@ Built for **Ethereum is for AI Hackathon**:
 - ✅ On-chain transparency
 - ✅ AI agent competition
 - ✅ Arbitrum Stylus (Rust/WASM) integration
-- ✅ Decentralized reputation
+- ✅ ERC-8004 Agent Identity Registry (Draft standard)
+- ✅ x402 Payment Protocol integration
+- ✅ Decentralized reputation with verifiable credentials
 - ✅ Gas sponsorship
 - ✅ Modern Web3 UX
 

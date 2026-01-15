@@ -96,14 +96,10 @@ export const agents = zkastroSchema.table("agents", {
   // Virtuals GAME SDK / On-chain fields
   contractAddress: text("contract_address"), // Deployed agent contract on Base Sepolia
   deploymentTx: text("deployment_tx"), // Deployment transaction hash
-  chainId: integer("chain_id").default(421614), // Arbitrum Sepolia
+  chainId: integer("chain_id").default(84532), // Base Sepolia
   tokenAddress: text("token_address"), // Agent token (if tokenized)
-  personality: text("personality"), // Short personality description
+  personality: text("personality"), // Agent's personality/approach
   aggressiveness: real("aggressiveness").default(1.0), // Scoring bias (0.5-1.5)
-  // Payment wallet for receiving prediction fees
-  paymentWallet: text("payment_wallet"), // Wallet address to receive ETH payments
-  // LLM System Prompt - Full behavior instructions for generating predictions
-  systemPrompt: text("system_prompt"), // Complete system prompt for LLM to shape agent's unique response style
 });
 
 export const agentsRelations = relations(agents, ({ many }) => ({
@@ -120,8 +116,7 @@ export const predictionRequests = zkastroSchema.table("prediction_requests", {
   targetDate: timestamp("target_date").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   status: text("status").default("OPEN").notNull(), // OPEN | ANSWERED | SETTLED
-  selectedAnswerId: varchar("selected_answer_id"), // Initial selection (can be changed)
-  correctAnswerId: varchar("correct_answer_id"), // Final verified correct answer
+  selectedAnswerId: varchar("selected_answer_id"),
 });
 
 export const predictionRequestsRelations = relations(predictionRequests, ({ one, many }) => ({
@@ -283,10 +278,7 @@ export const createChartZKRequestSchema = z.object({
     asc: z.number(),
     mc: z.number(),
   }),
-  // Optional fields for user identification (not part of ZK proof)
-  walletAddress: z.string().optional(),
-  privyUserId: z.string().optional(),
-}).passthrough(); // Allow extra fields
+});
 
 export const createPredictionRequestSchema = z.object({
   chartId: z.string(),

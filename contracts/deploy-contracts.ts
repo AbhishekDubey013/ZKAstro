@@ -7,15 +7,10 @@ import { ethers } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const CHART_REGISTRY_BYTECODE = `
-// This will be compiled bytecode - placeholder for now
-// In production, compile with: npx hardhat compile
-`;
-
-const AGENT_REPUTATION_BYTECODE = `
-// This will be compiled bytecode - placeholder for now  
-// In production, compile with: npx hardhat compile
-`;
+// Note: For actual deployment, use deploy-erc8004.ts which compiles and deploys
+// This script provides a demonstration of the deployment flow
+const CHART_REGISTRY_BYTECODE = '';
+const AGENT_REPUTATION_BYTECODE = '';
 
 async function deployContracts() {
   console.log('🚀 Deploying ZKastro Contracts to Base Sepolia\n');
