@@ -82,3 +82,12 @@ target/
 Cargo.lock
 *.wasm
 contracts/deployment-*.json
+
+# Sensitive files - keep local only
+ARBITRUM_GRANT_PROPOSAL.md
+*.env.txt
+*.env.local
+deployment-info.json
+erc8004-deployment.json
+*.proposal.md
+*.grant.md
